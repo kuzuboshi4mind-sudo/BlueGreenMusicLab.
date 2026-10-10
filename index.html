@@ -8,6 +8,7 @@
 <title>タップ召喚</title>
 <style>
   :root {
+    color-scheme: dark;
     --bg: #1b1640;
     --bg2: #2a2160;
     --card: #342a75;
@@ -423,8 +424,18 @@
     if (b.dataset.view === 'dex') renderDex();
   }));
 
+  // 2回押しで確定（確認ダイアログが使えない環境でも動くように）
+  let resetArmed = 0;
   $('reset').addEventListener('click', () => {
-    if (!confirm('本当にデータをリセットしますか？')) return;
+    if (Date.now() - resetArmed > 3000) {
+      resetArmed = Date.now();
+      $('reset').textContent = 'もう一度押すとリセット';
+      setTimeout(() => { $('reset').textContent = 'データをリセット'; }, 3000);
+      return;
+    }
+    resetArmed = 0;
+    $('reset').textContent = 'データをリセット';
+    toast('データをリセットしました');
     state = { coins: 0, summons: 0, owned: {}, totalTaps: 0 };
     save(); renderParty(); renderDex(); render();
     $('stage').className = 'summon-stage';
