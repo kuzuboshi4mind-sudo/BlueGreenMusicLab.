@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b1640">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>タップ召喚</title>
+<style>
+  :root {
+    --bg: #1b1640;
+    --bg2: #2a2160;
+    --card: #342a75;
+    --text: #fff;
+    --muted: #b9b2e6;
+    --gold: #ffd54a;
+    --accent: #ff6fa8;
+    --n: #9aa5b1;
+    --r: #4fc3f7;
+    --sr: #ba68c8;
+    --ssr: #ffb300;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% 0%, var(--bg2), var(--bg) 70%);
+    color: var(--text);
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top);
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; gap: 8px;
+  }
+  .coins { font-size: 26px; font-weight: 800; color: var(--gold); text-shadow: 0 2px 0 #a07800; }
+  .stat { font-size: 13px; color: var(--muted); text-align: right; line-height: 1.4; }
+  main { flex: 1; position: relative; overflow: hidden; }
+  .view { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; padding: 0 16px 16px; }
+  .view.active { display: flex; }
+
+  /* ホーム */
+  #tapZone {
+    flex: 1; position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; touch-action: none;
+  }
+  #tapBtn {
+    width: min(62vw, 260px); aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6b0, var(--gold) 45%, #d99a00);
+    box-shadow: 0 10px 0 #9c6d00, 0 0 40px rgba(255,213,74,.45);
+    display: flex; align-items: center; justify-content: center;
+    font-size: min(28vw, 120px); transition: transform .05s;
+  }
+  #tapBtn.pressed { transform: translateY(6px) scale(.96); box-shadow: 0 4px 0 #9c6d00, 0 0 50px rgba(255,213,74,.7); }
+  .fever #tapBtn { background: radial-gradient(circle at 35% 30%, #ffd1e6, var(--accent) 45%, #c2185b); box-shadow: 0 10px 0 #880e4f, 0 0 60px rgba(255,111,168,.8); }
+  .hint { margin-top: 22px; color: var(--muted); font-size: 14px; }
+  .float {
+    position: absolute; pointer-events: none; font-weight: 800; font-size: 22px;
+    color: var(--gold); text-shadow: 0 2px 0 #000a; animation: up .8s ease-out forwards;
+  }
+  .fever .float { color: #ffd1e6; }
+  @keyframes up { to { transform: translateY(-80px); opacity: 0; } }
+
+  .gauge { width: 100%; max-width: 420px; margin: 0 auto 10px; }
+  .gauge-label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .gauge-bar { height: 12px; border-radius: 6px; background: #0006; overflow: hidden; }
+  .gauge-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #ffd1e6); transition: width .1s; }
+
+  .party-strip { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 36px; padding: 6px 0; font-size: 26px; }
+  .party-strip span { animation: bob 1.6s ease-in-out infinite; display: inline-block; }
+  @keyframes bob { 50% { transform: translateY(-4px); } }
+
+  /* 召喚 */
+  .summon-stage {
+    margin-top: 8px; height: 220px; border-radius: 20px; background: #0004;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .gate { font-size: 90px; }
+  .gate.spin { animation: spin .9s ease-in; }
+  @keyframes spin { to { transform: rotate(720deg) scale(.2); opacity: .3; } }
+  .results { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 8px; }
+  .res {
+    width: 58px; padding: 4px 0; border-radius: 10px; text-align: center; background: var(--card);
+    border: 2px solid var(--n); animation: pop .35s backwards;
+  }
+  .res .e { font-size: 28px; }
+  .res .t { font-size: 10px; font-weight: 800; }
+  .res.new::after { content: "NEW"; display: block; font-size: 9px; color: var(--accent); font-weight: 800; }
+  @keyframes pop { from { transform: scale(0); } }
+  .single-res .e { font-size: 80px; }
+  .single-res .name { font-size: 20px; font-weight: 800; margin-top: 4px; }
+  .rar-N { border-color: var(--n); color: var(--n); }
+  .rar-R { border-color: var(--r); color: var(--r); }
+  .rar-SR { border-color: var(--sr); color: var(--sr); }
+  .rar-SSR { border-color: var(--ssr); color: var(--ssr); }
+  .glow-SSR { box-shadow: 0 0 80px 20px rgba(255,179,0,.6) inset; }
+  .glow-SR { box-shadow: 0 0 60px 10px rgba(186,104,200,.5) inset; }
+
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  button.big {
+    border: 0; border-radius: 16px; padding: 14px 8px; font: inherit; font-weight: 800; font-size: 17px;
+    color: #fff; background: linear-gradient(180deg, #ff8fbd, var(--accent)); box-shadow: 0 5px 0 #b03a6b;
+  }
+  button.big.alt { background: linear-gradient(180deg, #ffe27a, #f5b400); color: #4a3200; box-shadow: 0 5px 0 #a07800; }
+  button.big:active { transform: translateY(3px); box-shadow: 0 2px 0 #b03a6b; }
+  button.big:disabled { filter: grayscale(1) brightness(.7); }
+  button.big small { display: block; font-size: 12px; font-weight: 600; opacity: .9; }
+  .rates { margin-top: 14px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+  /* 図鑑 */
+  .dex-head { margin: 8px 0; color: var(--muted); font-size: 14px; }
+  .dex { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .dex-card { background: var(--card); border-radius: 14px; padding: 8px 4px; text-align: center; border: 2px solid transparent; }
+  .dex-card .e { font-size: 36px; }
+  .dex-card .name { font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .dex-card .lv { font-size: 11px; color: var(--muted); }
+  .dex-card.locked { opacity: .45; }
+  .dex-card.locked .e { filter: brightness(0); }
+
+  nav {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: #0007; padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button {
+    border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; padding: 8px 0 10px;
+  }
+  nav button .i { display: block; font-size: 24px; }
+  nav button.active { color: var(--gold); }
+  .badge { position: relative; }
+  .badge.on::after { content: ""; position: absolute; top: 6px; right: calc(50% - 18px); width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+
+  .toast {
+    position: fixed; left: 50%; top: 70px; transform: translateX(-50%); background: #000c; padding: 10px 16px;
+    border-radius: 999px; font-size: 14px; z-index: 10; pointer-events: none; opacity: 0; transition: opacity .2s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .reset { margin: 24px auto 8px; background: none; border: 1px solid #fff3; color: var(--muted); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="coins">💰 <span id="coins">0</span></div>
+  <div class="stat">1タップ <b id="power">1</b> コイン<br>仲間 <b id="partyCount">0</b> 人</div>
+</header>
+
+<main>
+  <!-- ホーム -->
+  <section class="view active" id="view-home">
+    <div class="party-strip" id="partyStrip"></div>
+    <div id="tapZone">
+      <div id="tapBtn">🪙</div>
+      <div class="hint" id="hint">画面をタップしてコインを集めよう！</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label"><span>フィーバーゲージ</span><span id="feverText">連打でたまる</span></div>
+      <div class="gauge-bar"><div class="gauge-fill" id="feverFill"></div></div>
+    </div>
+  </section>
+
+  <!-- 召喚 -->
+  <section class="view" id="view-summon">
+    <div class="summon-stage" id="stage"><div class="gate" id="gate">🌀</div></div>
+    <div class="btns">
+      <button class="big" id="summon1">1回召喚<small id="cost1"></small></button>
+      <button class="big alt" id="summon10">10連召喚<small id="cost10"></small></button>
+    </div>
+    <div class="rates">
+      排出率：<span class="rar-N">N 60%</span> ／ <span class="rar-R">R 28%</span> ／ <span class="rar-SR">SR 10%</span> ／ <span class="rar-SSR">SSR 2%</span><br>
+      10連はコスト1割引＋SR以上1体確定！<br>
+      召喚するほどコストが少しずつ上がります
+    </div>
+  </section>
+
+  <!-- 図鑑 -->
+  <section class="view" id="view-dex">
+    <div class="dex-head" id="dexHead"></div>
+    <div class="dex" id="dex"></div>
+    <button class="reset" id="reset">データをリセット</button>
+  </section>
+</main>
+
+<nav>
+  <button data-view="home" class="active"><span class="i">👆</span>タップ</button>
+  <button data-view="summon" class="badge" id="navSummon"><span class="i">🔮</span>召喚</button>
+  <button data-view="dex"><span class="i">📖</span>仲間図鑑</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ===== キャラクターデータ =====
+  // power: 1体あたりの「1タップで増えるコイン」。重複召喚でレベルアップし、レベル分だけ加算される。
+  const RARITY = {
+    N:   { rate: 60, power: 1 },
+    R:   { rate: 28, power: 3 },
+    SR:  { rate: 10, power: 10 },
+    SSR: { rate: 2,  power: 30 },
+  };
+  const CHARS = [
+    { id: 'piyo',   e: '🐣', name: 'ピヨ',       r: 'N' },
+    { id: 'chu',    e: '🐭', name: 'チュー',     r: 'N' },
+    { id: 'kero',   e: '🐸', name: 'ケロ',       r: 'N' },
+    { id: 'mimi',   e: '🐰', name: 'ミミ',       r: 'N' },
+    { id: 'nyan',   e: '🐱', name: 'ニャン',     r: 'N' },
+    { id: 'wan',    e: '🐶', name: 'ワン',       r: 'N' },
+    { id: 'kon',    e: '🦊', name: 'コン',       r: 'R' },
+    { id: 'panda',  e: '🐼', name: 'パンダ',     r: 'R' },
+    { id: 'pen',    e: '🐧', name: 'ペンギン',   r: 'R' },
+    { id: 'ho',     e: '🦉', name: 'ホーホー',   r: 'R' },
+    { id: 'tora',   e: '🐯', name: 'トラ',       r: 'R' },
+    { id: 'uni',    e: '🦄', name: 'ユニコーン', r: 'SR' },
+    { id: 'fairy',  e: '🧚', name: 'フェアリー', r: 'SR' },
+    { id: 'mage',   e: '🧙', name: 'マージ',     r: 'SR' },
+    { id: 'robo',   e: '🤖', name: 'ロボ',       r: 'SR' },
+    { id: 'dragon', e: '🐉', name: 'ドラゴン',   r: 'SSR' },
+    { id: 'king',   e: '🤴', name: 'キング',     r: 'SSR' },
+    { id: 'star',   e: '🌟', name: 'スター',     r: 'SSR' },
+  ];
+  const byRarity = r => CHARS.filter(c => c.r === r);
+
+  const BASE_COST = 30;
+  const COST_STEP = 4;      // 1回召喚するごとに増えるコスト
+  const FEVER_MAX = 100;
+  const FEVER_TIME = 8000;  // ms
+  const FEVER_MULT = 3;
+  const SAVE_KEY = 'tap-summon-save-v1';
+
+  // ===== 状態 =====
+  let state = { coins: 0, summons: 0, owned: {}, totalTaps: 0 };
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && typeof s.coins === 'number') state = Object.assign(state, s);
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} };
+
+  let fever = 0, feverUntil = 0;
+
+  // ===== 計算 =====
+  const tapPower = () => 1 + Object.entries(state.owned).reduce((sum, [id, lv]) => {
+    const c = CHARS.find(c => c.id === id);
+    return c ? sum + RARITY[c.r].power * lv : sum;
+  }, 0);
+  const costAt = n => BASE_COST + n * COST_STEP;
+  const cost1 = () => costAt(state.summons);
+  const cost10 = () => {
+    let t = 0;
+    for (let i = 0; i < 10; i++) t += costAt(state.summons + i);
+    return Math.floor(t * 0.9);
+  };
+  const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n.toLocaleString('ja-JP');
+
+  // ===== 表示 =====
+  const $ = id => document.getElementById(id);
+  function render() {
+    const inFever = Date.now() < feverUntil;
+    $('coins').textContent = fmt(state.coins);
+    $('power').textContent = fmt(tapPower() * (inFever ? FEVER_MULT : 1));
+    $('partyCount').textContent = Object.keys(state.owned).length;
+    $('cost1').textContent = '💰 ' + fmt(cost1());
+    $('cost10').textContent = '💰 ' + fmt(cost10());
+    $('summon1').disabled = state.coins < cost1();
+    $('summon10').disabled = state.coins < cost10();
+    $('navSummon').classList.toggle('on', state.coins >= cost1());
+  }
+  function renderParty() {
+    const ids = Object.keys(state.owned);
+    $('partyStrip').innerHTML = ids.map((id, i) => {
+      const c = CHARS.find(c => c.id === id);
+      return `<span style="animation-delay:${(i % 6) * .2}s">${c.e}</span>`;
+    }).join('');
+    $('hint').textContent = ids.length
+      ? '仲間がタップを応援中！'
+      : '画面をタップしてコインを集めよう！';
+  }
+  function renderDex() {
+    const got = Object.keys(state.owned).length;
+    $('dexHead').textContent = `集めた仲間 ${got} / ${CHARS.length}　（累計タップ ${fmt(state.totalTaps)} 回）`;
+    $('dex').innerHTML = CHARS.map(c => {
+      const lv = state.owned[c.id];
+      if (!lv) return `<div class="dex-card locked"><div class="e">${c.e}</div><div class="name">？？？</div><div class="lv rar-${c.r}">${c.r}</div></div>`;
+      return `<div class="dex-card rar-${c.r}"><div class="e">${c.e}</div><div class="name" style="color:#fff">${c.name}</div>
+        <div class="lv"><span class="rar-${c.r}">${c.r}</span> Lv.${lv}　+${RARITY[c.r].power * lv}/タップ</div></div>`;
+    }).join('');
+  }
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  // ===== タップ =====
+  const zone = $('tapZone'), btn = $('tapBtn');
+  function tap(x, y) {
+    const inFever = Date.now() < feverUntil;
+    const gain = tapPower() * (inFever ? FEVER_MULT : 1);
+    state.coins += gain;
+    state.totalTaps++;
+    if (!inFever) {
+      fever = Math.min(FEVER_MAX, fever + 2);
+      if (fever >= FEVER_MAX) startFever();
+    }
+    const rect = zone.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'float';
+    f.textContent = '+' + fmt(gain);
+    f.style.left = (x - rect.left - 20 + (Math.random() * 30 - 15)) + 'px';
+    f.style.top = (y - rect.top - 30) + 'px';
+    zone.appendChild(f);
+    setTimeout(() => f.remove(), 800);
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+  }
+  // マルチタッチ対応：同時に触れた指の数だけカウント
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) tap(t.clientX, t.clientY);
+    press(); render();
+  }, { passive: false });
+  zone.addEventListener('mousedown', e => { tap(e.clientX, e.clientY); press(); render(); });
+  function press() {
+    btn.classList.add('pressed');
+    clearTimeout(press.t); press.t = setTimeout(() => btn.classList.remove('pressed'), 70);
+  }
+
+  function startFever() {
+    feverUntil = Date.now() + FEVER_TIME;
+    document.body.classList.add('fever');
+    btn.textContent = '💎';
+    toast(`🔥 フィーバー！ コイン${FEVER_MULT}倍！`);
+  }
+  // ゲージ更新・自然減少・定期セーブ
+  setInterval(() => {
+    const now = Date.now();
+    if (now < feverUntil) {
+      const left = (feverUntil - now) / FEVER_TIME;
+      $('feverFill').style.width = (left * 100) + '%';
+      $('feverText').textContent = `フィーバー中！ 残り${Math.ceil((feverUntil - now) / 1000)}秒`;
+    } else {
+      if (document.body.classList.contains('fever')) {
+        document.body.classList.remove('fever');
+        btn.textContent = '🪙';
+        fever = 0; render();
+      }
+      fever = Math.max(0, fever - 0.6);
+      $('feverFill').style.width = fever + '%';
+      $('feverText').textContent = '連打でたまる';
+    }
+  }, 100);
+  setInterval(save, 3000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+  // ===== 召喚 =====
+  function rollRarity(minSR) {
+    let roll = Math.random() * 100;
+    if (minSR) {
+      // SR以上確定：SR と SSR の比率を維持して抽選
+      roll = Math.random() * (RARITY.SR.rate + RARITY.SSR.rate);
+      return roll < RARITY.SSR.rate ? 'SSR' : 'SR';
+    }
+    for (const r of ['SSR', 'SR', 'R', 'N']) {
+      if (roll < RARITY[r].rate) return r;
+      roll -= RARITY[r].rate;
+    }
+    return 'N';
+  }
+  function summon(count) {
+    const cost = count === 10 ? cost10() : cost1();
+    if (state.coins < cost) return;
+    state.coins -= cost;
+    state.summons += count;
+
+    const results = [];
+    for (let i = 0; i < count; i++) {
+      const r = rollRarity(count === 10 && i === count - 1 && !results.some(x => x.c.r === 'SR' || x.c.r === 'SSR'));
+      const pool = byRarity(r);
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      const isNew = !state.owned[c.id];
+      state.owned[c.id] = (state.owned[c.id] || 0) + 1;
+      results.push({ c, isNew });
+    }
+    save();
+    playSummon(results);
+  }
+  let animating = false;
+  function playSummon(results) {
+    animating = true;
+    $('summon1').disabled = $('summon10').disabled = true;
+    const stage = $('stage');
+    stage.className = 'summon-stage';
+    stage.innerHTML = '<div class="gate spin">🌀</div>';
+    const best = results.some(x => x.c.r === 'SSR') ? 'SSR' : results.some(x => x.c.r === 'SR') ? 'SR' : null;
+    setTimeout(() => {
+      if (best) stage.classList.add('glow-' + best);
+      if (results.length === 1) {
+        const { c, isNew } = results[0];
+        stage.innerHTML = `<div class="single-res res rar-${c.r}" style="width:auto;background:none;border:0">
+          <div class="e">${c.e}</div><div class="t">${c.r}</div>
+          <div class="name" style="color:#fff">${c.name}</div>
+          <div style="font-size:13px;color:var(--muted)">${isNew ? '✨ 新しい仲間！' : `Lv.${state.owned[c.id]} にアップ！`}</div></div>`;
+      } else {
+        stage.innerHTML = '<div class="results">' + results.map(({ c, isNew }, i) =>
+          `<div class="res rar-${c.r}${isNew ? ' new' : ''}" style="animation-delay:${i * .07}s"><div class="e">${c.e}</div><div class="t">${c.r}</div></div>`
+        ).join('') + '</div>';
+      }
+      if (best === 'SSR') toast('🎉 SSRが出た！');
+      animating = false;
+      renderParty(); renderDex(); render();
+    }, 900);
+  }
+  $('summon1').addEventListener('click', () => !animating && summon(1));
+  $('summon10').addEventListener('click', () => !animating && summon(10));
+
+  // ===== タブ =====
+  document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + b.dataset.view));
+    if (b.dataset.view === 'dex') renderDex();
+  }));
+
+  $('reset').addEventListener('click', () => {
+    if (!confirm('本当にデータをリセットしますか？')) return;
+    state = { coins: 0, summons: 0, owned: {}, totalTaps: 0 };
+    save(); renderParty(); renderDex(); render();
+    $('stage').className = 'summon-stage';
+    $('stage').innerHTML = '<div class="gate">🌀</div>';
+  });
+
+  renderParty(); renderDex(); render();
+})();
+</script>
+</body>
+</html>
