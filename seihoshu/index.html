@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14351f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="正捕手争い">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>正捕手争い</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f3f5f0;
+    --card: #ffffff;
+    --text: #1d2420;
+    --muted: #66706a;
+    --line: #dde3dc;
+    --head: #14351f;
+    --head-text: #ffffff;
+    --a: #1e6fd9;
+    --b: #d9431e;
+    --win: #1a8a4a;
+    --lose: #b3261e;
+    --draw: #7a7f7c;
+    --input: #f7f9f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101511;
+      --card: #1a211c;
+      --text: #e8ece9;
+      --muted: #9aa49d;
+      --line: #2c3530;
+      --head: #0c2414;
+      --a: #6aa8ff;
+      --b: #ff8a65;
+      --win: #5fd18e;
+      --lose: #ff7b72;
+      --draw: #a3aaa6;
+      --input: #232b25;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    background: var(--head); color: var(--head-text);
+    padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+    text-align: center;
+  }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .1em; }
+  header p { margin: 4px 0 0; font-size: 12px; opacity: .8; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  h2 { margin: 0 0 12px; font-size: 16px; }
+
+  /* 入力 */
+  .versus { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
+  .side { display: flex; flex-direction: column; gap: 8px; }
+  .side label { font-size: 12px; color: var(--muted); }
+  .side.a .tag { color: var(--a); }
+  .side.b .tag { color: var(--b); }
+  .tag { font-weight: 800; font-size: 13px; }
+  .vs { font-weight: 900; color: var(--muted); padding-bottom: 14px; }
+  input {
+    width: 100%; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--input); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  }
+  input:focus { outline: 2px solid var(--a); outline-offset: 0; }
+  input.score { font-size: 28px; font-weight: 800; text-align: center; padding: 8px; }
+  .row { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+  .row label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .preview { margin-top: 12px; min-height: 22px; text-align: center; font-size: 14px; font-weight: 700; }
+  .rule { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
+  button {
+    font: inherit; border: 0; border-radius: 10px; cursor: pointer;
+  }
+  .primary {
+    width: 100%; margin-top: 12px; padding: 14px; font-size: 17px; font-weight: 800;
+    background: var(--head); color: #fff;
+  }
+  .primary:disabled { opacity: .4; cursor: default; }
+  .error { color: var(--lose); font-size: 13px; text-align: center; min-height: 18px; margin-top: 6px; }
+
+  /* 戦績 */
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .stat .name { font-weight: 800; overflow-wrap: anywhere; }
+  .stat .rec { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* 表 */
+  .table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 460px; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  td.name { white-space: normal; overflow-wrap: anywhere; max-width: 120px; }
+  td.pt { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .w { color: var(--win); font-weight: 800; }
+  .l { color: var(--lose); }
+  .d { color: var(--draw); }
+  .badge { font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+  .badge.w { background: color-mix(in srgb, var(--win) 15%, transparent); }
+  .badge.l { background: color-mix(in srgb, var(--lose) 15%, transparent); }
+  .badge.d { background: color-mix(in srgb, var(--draw) 15%, transparent); }
+  .del { background: transparent; color: var(--muted); padding: 4px 8px; font-size: 13px; }
+  .del.armed { background: var(--lose); color: #fff; }
+  .empty { text-align: center; color: var(--muted); padding: 20px 0; font-size: 14px; }
+  .tools { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .ghost { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 8px 12px; font-size: 13px; }
+  .ghost.armed { background: var(--lose); color: #fff; border-color: var(--lose); }
+</style>
+</head>
+<body>
+<header>
+  <h1>正捕手争い</h1>
+  <p>点数が高い方が負け</p>
+</header>
+
+<main>
+  <section>
+    <h2>対戦を記録</h2>
+    <form id="form" autocomplete="off">
+      <div class="versus">
+        <div class="side a">
+          <span class="tag">A</span>
+          <input id="nameA" placeholder="Aの名前" maxlength="20" list="names">
+          <input id="scoreA" class="score" type="number" inputmode="decimal" step="any" placeholder="点数">
+        </div>
+        <div class="vs">VS</div>
+        <div class="side b">
+          <span class="tag">B</span>
+          <input id="nameB" placeholder="Bの名前" maxlength="20" list="names">
+          <input id="scoreB" class="score" type="number" inputmode="decimal" step="any" placeholder="点数">
+        </div>
+      </div>
+      <datalist id="names"></datalist>
+      <div class="row">
+        <label for="date">日付</label>
+        <input id="date" type="date">
+      </div>
+      <div class="row">
+        <label for="memo">メモ</label>
+        <input id="memo" placeholder="任意" maxlength="60">
+      </div>
+      <div class="preview" id="preview"></div>
+      <div class="rule">※ 点数が高い方が負け・同点は引き分け</div>
+      <button class="primary" id="submit" type="submit">勝敗を記録する</button>
+      <div class="error" id="error"></div>
+    </form>
+  </section>
+
+  <section>
+    <h2>通算成績</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section>
+    <h2>勝敗記録</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>日付</th><th>A</th><th>点</th><th></th><th>点</th><th>B</th><th>メモ</th><th></th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="tools">
+      <button class="ghost" id="csv" type="button">CSVで保存</button>
+      <button class="ghost" id="clear" type="button">全記録を消去</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const SAVE_KEY = 'seihoshu-v1';
+  const $ = id => document.getElementById(id);
+  const el = { form: $('form'), nameA: $('nameA'), nameB: $('nameB'), scoreA: $('scoreA'), scoreB: $('scoreB'),
+    date: $('date'), memo: $('memo'), preview: $('preview'), error: $('error'), tbody: $('tbody'),
+    stats: $('stats'), names: $('names'), csv: $('csv'), clear: $('clear') };
+
+  let records = [];
+  try { records = JSON.parse(localStorage.getItem(SAVE_KEY)) || []; } catch (e) { records = []; }
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(records)); } catch (e) {} };
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // 点数が高い方が負け。'A' | 'B' | 'draw'
+  const winnerOf = (a, b) => a === b ? 'draw' : (a < b ? 'A' : 'B');
+
+  const readScore = input => {
+    const v = input.value.trim();
+    if (v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  function updatePreview() {
+    const a = readScore(el.scoreA), b = readScore(el.scoreB);
+    const nA = el.nameA.value.trim() || 'A', nB = el.nameB.value.trim() || 'B';
+    if (a === null || b === null) { el.preview.textContent = ''; return; }
+    const w = winnerOf(a, b);
+    el.preview.innerHTML = w === 'draw'
+      ? '<span class="d">引き分け</span>'
+      : `<span class="w">${esc(w === 'A' ? nA : nB)} の勝ち</span>`;
+  }
+
+  function render() {
+    // 名前候補
+    const all = [...new Set(records.flatMap(r => [r.nameA, r.nameB]))];
+    el.names.innerHTML = all.map(n => `<option value="${esc(n)}">`).join('');
+
+    // 通算成績
+    const tally = {};
+    for (const r of records) {
+      const w = winnerOf(r.scoreA, r.scoreB);
+      for (const [name, side] of [[r.nameA, 'A'], [r.nameB, 'B']]) {
+        const t = tally[name] || (tally[name] = { win: 0, lose: 0, draw: 0 });
+        if (w === 'draw') t.draw++; else if (w === side) t.win++; else t.lose++;
+      }
+    }
+    const rows = Object.entries(tally).sort((x, y) => (y[1].win - x[1].win) || (x[1].lose - y[1].lose));
+    el.stats.innerHTML = rows.length
+      ? rows.map(([n, t]) => {
+          const games = t.win + t.lose;
+          const rate = games ? (t.win / games).toFixed(3).replace(/^0/, '') : '---';
+          return `<div class="stat"><div class="name">${esc(n)}</div>
+            <div class="rec">${t.win}勝 ${t.lose}敗${t.draw ? ` ${t.draw}分` : ''}　勝率 ${rate}</div></div>`;
+        }).join('')
+      : '<div class="empty">まだ記録がありません</div>';
+
+    // 表（新しい順）
+    if (!records.length) {
+      el.tbody.innerHTML = '<tr><td colspan="9" class="empty">まだ記録がありません</td></tr>';
+      return;
+    }
+    el.tbody.innerHTML = records.map((r, i) => ({ r, i })).reverse().map(({ r, i }) => {
+      const w = winnerOf(r.scoreA, r.scoreB);
+      const cls = side => w === 'draw' ? 'd' : (w === side ? 'w' : 'l');
+      const badge = side => w === 'draw' ? '<span class="badge d">分</span>'
+        : (w === side ? '<span class="badge w">勝</span>' : '<span class="badge l">負</span>');
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.date.slice(5).replace('-', '/'))}</td>
+        <td class="name ${cls('A')}">${esc(r.nameA)}${badge('A')}</td>
+        <td class="pt ${cls('A')}">${esc(r.scoreA)}</td>
+        <td>-</td>
+        <td class="pt ${cls('B')}">${esc(r.scoreB)}</td>
+        <td class="name ${cls('B')}">${esc(r.nameB)}${badge('B')}</td>
+        <td class="name">${esc(r.memo || '')}</td>
+        <td><button class="del" type="button" data-id="${r.id}">削除</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // 2回タップで確定するボタン
+  function armable(btn, label, armedLabel, action) {
+    let timer = null;
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('armed')) {
+        clearTimeout(timer);
+        btn.classList.remove('armed'); btn.textContent = label;
+        action();
+        return;
+      }
+      btn.classList.add('armed'); btn.textContent = armedLabel;
+      timer = setTimeout(() => { btn.classList.remove('armed'); btn.textContent = label; }, 2500);
+    });
+  }
+
+  el.form.addEventListener('submit', e => {
+    e.preventDefault();
+    const nameA = el.nameA.value.trim(), nameB = el.nameB.value.trim();
+    const scoreA = readScore(el.scoreA), scoreB = readScore(el.scoreB);
+    if (!nameA || !nameB) { el.error.textContent = 'AとBの名前を入力してください'; return; }
+    if (nameA === nameB) { el.error.textContent = 'AとBは別の名前にしてください'; return; }
+    if (scoreA === null || scoreB === null) { el.error.textContent = '両方の点数を入力してください'; return; }
+    el.error.textContent = '';
+    records.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      date: el.date.value || today(), nameA, nameB, scoreA, scoreB, memo: el.memo.value.trim()
+    });
+    save();
+    // 名前は次の対戦用に残し、点数とメモだけクリア
+    el.scoreA.value = ''; el.scoreB.value = ''; el.memo.value = '';
+    updatePreview();
+    render();
+  });
+
+  ['input', 'change'].forEach(ev =>
+    [el.nameA, el.nameB, el.scoreA, el.scoreB].forEach(i => i.addEventListener(ev, () => { el.error.textContent = ''; updatePreview(); })));
+
+  // 削除（行ごとの2回タップ確認）
+  el.tbody.addEventListener('click', e => {
+    const btn = e.target.closest('.del');
+    if (!btn) return;
+    if (btn.classList.contains('armed')) {
+      records = records.filter(r => r.id !== btn.dataset.id);
+      save(); render();
+      return;
+    }
+    el.tbody.querySelectorAll('.del.armed').forEach(b => { b.classList.remove('armed'); b.textContent = '削除'; });
+    btn.classList.add('armed'); btn.textContent = '本当に?';
+    setTimeout(() => { if (btn.isConnected) { btn.classList.remove('armed'); btn.textContent = '削除'; } }, 2500);
+  });
+
+  armable(el.clear, '全記録を消去', 'もう一度タップで消去', () => { records = []; save(); render(); });
+
+  el.csv.addEventListener('click', () => {
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [['No', '日付', 'A', 'A点', 'B', 'B点', '勝者', 'メモ'].map(q).join(',')];
+    records.forEach((r, i) => {
+      const w = winnerOf(r.scoreA, r.scoreB);
+      lines.push([i + 1, r.date, r.nameA, r.scoreA, r.nameB, r.scoreB,
+        w === 'draw' ? '引き分け' : (w === 'A' ? r.nameA : r.nameB), r.memo || ''].map(q).join(','));
+    });
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `正捕手争い_${today()}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  // 前回の名前を初期値に
+  const last = records[records.length - 1];
+  if (last) { el.nameA.value = last.nameA; el.nameB.value = last.nameB; }
+  el.date.value = today();
+  render();
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
