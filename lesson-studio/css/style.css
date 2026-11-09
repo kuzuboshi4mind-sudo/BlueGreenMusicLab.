@@ -1334,7 +1334,7 @@ body.day-view .calendar .row-date th[data-date] { font-size: 1.2em; }
 .legend-swatch.pastel.counted,
 .legend-lesson.lesson { --pastel: 74%; --pastel-tentative: 40%; }
 
-/* 種類「その他」は、二日酔いなどの書き込み用。状態にかかわらず、種類の色(初期値は JINIS より薄い水色)を
+/* 種類「その他」は、ちょっとした書き込み用。状態にかかわらず、種類の色(初期値は薄い水色)を
    半透明(60%)で塗り、下のしま模様や土日の色が透けて見えるようにする。枠なし・小さめの文字
    (2026-10-16 に 塗らない → 薄い水色 → 半透明の薄い水色) */
 .calendar .lesson.plain,
@@ -1539,3 +1539,10 @@ body.offline .calendar-scroll { border-top: 4px solid var(--tentative); }
 .choice-list .toggle { white-space: normal; align-items: flex-start; min-height: 0; padding: 6px 0; line-height: 1.45; }
 .choice-list .toggle input { flex: none; margin-top: 1px; }
 .login-terms input { accent-color: var(--accent); }
+/* 設定のボタンは月の名前・集計と同じ行に(上の帯を2行に収める) */
+.settings-btn { min-height: 40px; min-width: 44px; padding: 0 10px; }
+@media (max-width: 600px), (max-height: 500px) {
+  .title-group { flex-wrap: nowrap; }
+  .title-group .month-title { white-space: nowrap; }
+  .settings-btn { min-height: 36px; min-width: 40px; padding: 0 8px; flex: none; }
+}

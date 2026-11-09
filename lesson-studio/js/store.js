@@ -37,7 +37,8 @@ const DEFAULT_TYPES = [
   { id: 'visit',    name: '出張・訪問', color: '#5c70f4', countInTotal: true },
   { id: 'online',   name: 'オンライン', color: '#2bb8ba', countInTotal: true },
   { id: 'practice', name: '練習',       color: '#9edbd2', countInTotal: false },
-  { id: 'live',     name: '本番・ライブ', color: '#d9c2f0', countInTotal: false },
+  { id: 'live',     name: 'ライブ・コンサート', color: '#d9c2f0', countInTotal: false },
+  { id: 'private',  name: '私用',       color: '#f3d9b1', countInTotal: false },   // 用事・通院など、レッスン以外の自分の予定
   { id: 'other',    name: 'その他',     color: '#c4e8f8', countInTotal: false },   // 表では半透明(60%)で塗る
 ];
 
@@ -102,7 +103,7 @@ const COLOR_MIGRATIONS = {
   'other-translucent': { id: 'other', from: ['#e2f4fc', '#d9d9d9', '#9e9e9e'], to: '#c4e8f8' },
 };
 // プライベートの種類は、保存済みの設定で「集計に入れる」になっていても1回だけ「入れない」に戻す
-// (2026-10-16:サウナ・練習がレッスンの合計に入っていたため。あとで設定から入れ直すことはできる)
+// (元の版で使っていたしくみ。あとで設定から入れ直すことはできる)
 const UNCOUNT_MIGRATIONS = { 'private-uncounted': ['sauna', 'practice', 'live', 'fishing', 'other'] };
 async function addNewDefaultTypes(saved) {
   const done = (await db.getSetting('typeMigrations')) || [];
@@ -784,7 +785,7 @@ export async function setCellColors(keys, color) {
 }
 
 // ---- 日ごとのメモ(「予定」の行)----
-// { '2026-10-05': 'サンパル', ... }
+// { '2026-10-05': '発表会', ... }
 export async function getDayNotes(year, month) {
   return db.listNotes(...monthRange(year, month));
 }
@@ -808,7 +809,7 @@ export function setLastInput({ typeId, duration, status }) {
 // ---- 生徒メモ ----
 // 生徒:{ id, name, memo, updatedAt }。予定の「名前」と同じ文字の生徒を、同じ人として扱う
 // 一覧に出すのは、メモを書いた生徒と、レッスンの予定・固定枠に名前がある生徒
-// (「なし(自分の予定)」と、集計に入れない種類(サウナ・練習・その他など)の予定はレッスンではないので数えない)
+// (「なし(自分の予定)」と、集計に入れない種類(練習・私用・その他など)の予定はレッスンではないので数えない)
 // 「生徒を削除」した名前は一覧と名前の候補から外す(予定はそのまま。設定の hiddenStudents に名前を覚える)
 
 export async function getHiddenStudents() {
@@ -1075,6 +1076,21 @@ export async function renameStudent(oldName, newName) {
     lessons: lessonChanges, slots: slotChanges, students: studentChanges, settings,
   });
   return lessonChanges.length + slotChanges.length;
+}
+
+// ---- 表に出す時間(汎用版で追加)----
+// { start: 6, end: 24 }(何時から何時まで表に出すか。どの端末でも同じ)
+export async function getDisplayHours() {
+  const v = (await db.getSetting('displayHours')) || {};
+  const start = Math.min(12, Math.max(6, Number(v.start) || 6));
+  const end = Math.min(24, Math.max(start + 1, Number(v.end) || 24));
+  return { start, end };
+}
+export async function saveDisplayHours(hours) {
+  const before = await getDisplayHours();
+  const after = { ...before, ...hours };
+  if (before.start === after.start && before.end === after.end) return;
+  await commit({ label: '表に出す時間', settings: [{ key: 'displayHours', before, after }] });
 }
 
 // ---- 教室の情報(教室名・講師名)----

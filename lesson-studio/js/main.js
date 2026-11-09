@@ -82,16 +82,17 @@ async function show({ keepScroll = false } = {}) {
   dayMemosBtn.hidden = !dayView;
   thisMonthBtn.textContent = dayView ? '今日' : '今月';
 
-  const [lessons, notes, types, rules, tentative, cellColors] = await Promise.all([
+  const [lessons, notes, types, rules, tentative, cellColors, hours] = await Promise.all([
     store.getLessons(year, month), store.getDayNotes(year, month), store.getTypes(), store.getDurationRules(),
-    store.isTentativeMonth(year, month), store.getCellColors(year, month),
+    store.isTentativeMonth(year, month), store.getCellColors(year, month), store.getDisplayHours(),
   ]);
+  displayStart = hours.start;
   showMonthStatus(tentative);
   updateStudentsBadge();
   dayNotes = notes;
   shownLessons = lessons;
   const { scrollLeft, scrollTop } = scroller;
-  renderCalendar(table, year, month, { lessons, dayNotes, types, cellColors, onlyDate: dayView ? selectedDate : null });
+  renderCalendar(table, year, month, { lessons, dayNotes, types, cellColors, onlyDate: dayView ? selectedDate : null, startHour: hours.start, endHour: hours.end });
   renderLegend(types);
   updateSummary(year, month, lessons, types, rules);
   updateMissingStudents(year, month, lessons, types);   // 前月の生徒で未入力の人(後ろで数える)
@@ -138,13 +139,14 @@ function renderLegend(types) {
 }
 
 // 今日の列が見えるように横スクロールする(今日がない月は左端へ)
-// 縦は 8:00 あたりから見えるようにする
+// 縦は「表に出す時間」の始まりから見えるようにする(それより前に予定がある月は、表の上に余分な行がある)
+let displayStart = 6;
 function scrollToToday() {
   if (viewMode === 'day') scroller.scrollLeft = 0;
   const todayCell = viewMode === 'day' ? null : table.querySelector('thead th.today');
   const timeColWidth = table.querySelector('.time-col').offsetWidth;
   scroller.scrollLeft = todayCell ? Math.max(0, todayCell.offsetLeft - timeColWidth - todayCell.offsetWidth * 2) : 0;
-  const eight = table.querySelector('td[data-time="8:00"]');
+  const eight = table.querySelector(`td[data-time="${displayStart}:00"]`);
   const headHeight = table.querySelector('thead').offsetHeight;
   scroller.scrollTop = eight ? eight.offsetTop - headHeight : 0;
 }

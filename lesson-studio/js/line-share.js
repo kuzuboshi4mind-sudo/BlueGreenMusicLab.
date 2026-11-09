@@ -283,7 +283,7 @@ function writeText() {
   const lessons = shown.filter(l => checked.has(l.id));
   current = lessons;
   // 仮・確約の印は付けない(相手に「確定」と出ると不自然なため。2026-10-22)
-  // 場所(自宅・訪問・OKI など)は文面に入れない(2026-10-27)
+  // 場所(自宅教室・訪問など)は文面に入れない(2026-10-27)
   const line = l => `・${dateLabel(l.date)} ${l.start}〜${fromMinutes(toMinutes(l.start) + l.duration)}`;
   // まとめて送るときは、人ごとに「【名前さん】」の見出しを付ける
   const blocks = members.length > 1

@@ -150,14 +150,18 @@ function lessonBlock(lesson, type, pos, solo = false) {
 
 // 表の中身を作って table 要素に入れる
 // data = { lessons:[...], dayNotes:{日付:文字}, types:[...] }
-// 表はふだん 8:00 から(Numbers と同じ)。8時より前に予定がある月だけ、その時刻から出す
-export const DISPLAY_START_HOUR = 8;
+// 表に出す時刻は設定の「表に出す時間」(初期値 6:00〜24:00)。その外に予定がある月だけ、その時刻まで広げる
+export const DISPLAY_START_HOUR = 6;
+export const DISPLAY_END_HOUR = 24;
 
 // data.onlyDate を渡すと、その1日だけの表にする(スマホの「1日ビュー」)
 export function renderCalendar(table, year, month, data = {}) {
   const { dayNotes = {}, types = [], onlyDate = null, cellColors = {} } = data;
   const lessons = onlyDate ? (data.lessons || []).filter(l => l.date === onlyDate) : (data.lessons || []);
-  const earliest = Math.min(DISPLAY_START_HOUR * 60, ...lessons.map(l => toMinutes(l.start)));
+  const startHour = data.startHour ?? DISPLAY_START_HOUR;
+  const endHour = data.endHour ?? DISPLAY_END_HOUR;
+  const earliest = Math.min(startHour * 60, ...lessons.map(l => toMinutes(l.start)));
+  const latest = Math.max(endHour * 60, ...lessons.map(l => toMinutes(l.start) + (Number(l.duration) || 30)));
   const firstSlot = `${Math.floor(earliest / 60)}:${earliest % 60 >= 30 ? '30' : '00'}`;
   const days = monthDays(year, month).filter(d => !onlyDate || d.key === onlyDate);
   const typeById = Object.fromEntries(types.map(t => [t.id, t]));
@@ -191,7 +195,7 @@ export function renderCalendar(table, year, month, data = {}) {
   }).join('');
 
   const slots = timeSlots();
-  const bodyRows = slots.slice(Math.max(0, slots.indexOf(firstSlot))).map(time => {
+  const bodyRows = slots.slice(Math.max(0, slots.indexOf(firstSlot))).filter(time => toMinutes(time) < latest).map(time => {
     const cells = days.map(d => {
       const blocks = blocksBySlot[`${d.key}|${time}`];
       // マスの色(予定とは別に塗った色)

@@ -69,7 +69,7 @@ export async function writeLessons(states) {
   save(KEYS.lessons, [...byId.values()]);
 }
 
-// { '2026-10-05': 'サンパル', ... }
+// { '2026-10-05': '発表会', ... }
 export async function listNotes(from, to) {
   return Object.fromEntries(Object.entries(load(KEYS.dayNotes, {})).filter(([d]) => d >= from && d <= to));
 }

@@ -30,9 +30,25 @@ export function initSettings(opts) {
   ruleList.addEventListener('change', onRuleChange);
   ruleList.addEventListener('click', onRuleClick);
   // 教室の情報:入力欄から離れたときに保存する
+  document.getElementById('hours-start').addEventListener('change', saveHours);
+  document.getElementById('hours-end').addEventListener('change', saveHours);
   for (const id of ['profile-studio', 'profile-teacher']) {
     document.getElementById(id).addEventListener('change', saveProfile);
   }
+}
+
+// 表に出す時間(はじめ 6〜12時、おわり 18〜24時)
+function renderHours({ start, end }) {
+  const opt = (h, sel) => `<option value="${h}" ${h === sel ? 'selected' : ''}>${h}:00</option>`;
+  document.getElementById('hours-start').innerHTML = [6, 7, 8, 9, 10, 11, 12].map(h => opt(h, start)).join('');
+  document.getElementById('hours-end').innerHTML = [18, 19, 20, 21, 22, 23, 24].map(h => opt(h, end)).join('');
+}
+async function saveHours() {
+  await store.saveDisplayHours({
+    start: Number(document.getElementById('hours-start').value),
+    end: Number(document.getElementById('hours-end').value),
+  });
+  onChanged();
 }
 
 async function saveProfile() {
@@ -47,6 +63,7 @@ async function openSettings() {
   let profile;
   [types, rules, profile] = await Promise.all([store.getTypes(), store.getDurationRules(), store.getProfile()]);
   document.getElementById('profile-studio').value = profile.studio;
+  renderHours(await store.getDisplayHours());
   document.getElementById('profile-teacher').value = profile.teacher;
   types = structuredClone(types);
   rules = structuredClone(rules);
