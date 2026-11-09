@@ -54,7 +54,7 @@ let typeList = [];     // 種類の一覧(メモの欄を生徒メモにする�
 let memoMode = 'lesson';   // 'student'=メモの欄は生徒メモ、'lesson'=この予定だけのメモ
 let memoDirty = false;     // メモの欄を手で直したか(直したあとは自動で入れ替えない)
 
-// 6:00〜23:45 を15分刻みで選べるようにする
+// 4:00〜23:45 を15分刻みで選べるようにする
 for (let m = START_HOUR * 60; m < DAY_END; m += 15) {
   f.start.add(new Option(fromMinutes(m), fromMinutes(m)));
 }

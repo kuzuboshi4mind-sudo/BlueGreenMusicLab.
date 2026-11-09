@@ -8,7 +8,7 @@
 //   「予定」の行のメモとマスの色は出さない(自分の予定が入らないように)
 // Excel 形式のファイルを作る部品(ExcelJS)は、書き出すときだけ読み込む
 import * as store from './store.js';
-import { monthDays, timeSlots, toMinutes, fromMinutes, textColorFor, START_HOUR } from './calendar.js';
+import { monthDays, timeSlots, toMinutes, fromMinutes, textColorFor } from './calendar.js';
 import { computeSummary } from './summary.js';
 
 const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
@@ -17,7 +17,7 @@ const EXCELJS_SRI = 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+ar
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const HEAD_ROWS = 3;              // 日付・曜日・予定 の3行
-const SLOTS = timeSlots();        // 6:00〜23:30 の36行
+const SLOTS = timeSlots();        // 4:00〜23:30(シートごとに、表に出す時間のはじめから使う)
 const COLORS = {
   head: 'FFE3F1EE',       // 見出しのマス
   off: 'FFDCF0FA',        // 土日・祝日の列(水色)
@@ -101,6 +101,9 @@ async function addMonthSheet(workbook, year, month, common) {
     store.getCellColors(year, month),
   ]);
   const lessons = onlyTypes ? allLessons.filter(l => onlyTypes.includes(l.typeId)) : allLessons;
+  // 表の行:設定の「表に出す時間」のはじめ(それより前に予定があればその時刻)から 23:30 まで
+  const firstMin = Math.min(common.startHour * 60, ...lessons.map(l => Math.floor(toMinutes(l.start) / 30) * 30));
+  const slots = SLOTS.filter(t => toMinutes(t) >= firstMin);
   const notes = onlyTypes ? {} : allNotes;
   const cellColors = onlyTypes ? {} : allColors;
   // 種類をしぼったときは、この月にその種類の予定がある生徒だけ
@@ -141,7 +144,7 @@ async function addMonthSheet(workbook, year, month, common) {
   }
 
   // ---- 時刻の行 ----
-  SLOTS.forEach((time, i) => {
+  slots.forEach((time, i) => {
     const row = ws.getRow(HEAD_ROWS + 1 + i);
     row.height = 18;
     row.getCell(1).value = time;
@@ -156,8 +159,8 @@ async function addMonthSheet(workbook, year, month, common) {
   });
 
   // ---- 予定 ----
-  const start = START_HOUR * 60;
-  const rowOf = min => Math.floor((min - start) / 30);   // 0 が 6:00 の行
+  const start = toMinutes(slots[0]);
+  const rowOf = min => Math.floor((min - start) / 30);   // 0 が表のいちばん上の行
   days.forEach((d, j) => {
     const col = j + 2;
     const dayLessons = lessons.filter(l => l.date === d.key)
@@ -166,7 +169,7 @@ async function addMonthSheet(workbook, year, month, common) {
     const byRow = new Map();
     for (const l of dayLessons) {
       const r = rowOf(toMinutes(l.start));
-      if (r < 0 || r >= SLOTS.length) continue;
+      if (r < 0 || r >= slots.length) continue;
       if (!byRow.has(r)) byRow.set(r, []);
       byRow.get(r).push(l);
     }
@@ -177,7 +180,7 @@ async function addMonthSheet(workbook, year, month, common) {
       // 1件だけで30分より長い予定は、下のマスにつなげる(途中で別の予定が始まらなければ)
       let last = r;
       if (list.length === 1) {
-        const end = Math.min(SLOTS.length - 1, Math.ceil((toMinutes(first.start) + first.duration - start) / 30) - 1);
+        const end = Math.min(slots.length - 1, Math.ceil((toMinutes(first.start) + first.duration - start) / 30) - 1);
         while (last < end && !byRow.has(last + 1) && !used.has(last + 1)) last++;
       }
       const cell = ws.getRow(HEAD_ROWS + 1 + r).getCell(col);
@@ -203,13 +206,13 @@ async function addMonthSheet(workbook, year, month, common) {
   });
 
   // ---- 罫線(予定のないマス)----
-  const lastRow = HEAD_ROWS + SLOTS.length;
+  const lastRow = HEAD_ROWS + slots.length;
   for (let r = 1; r <= lastRow; r++) {
     const row = ws.getRow(r);
     for (let c = 1; c <= days.length + 1; c++) {
       const cell = row.getCell(c);
       if (!cell.border) {
-        const hour = r > HEAD_ROWS && SLOTS[r - HEAD_ROWS - 1].endsWith(':30');
+        const hour = r > HEAD_ROWS && slots[r - HEAD_ROWS - 1].endsWith(':30');
         cell.border = { top: side(COLORS.line), left: side(COLORS.line), right: side(COLORS.line), bottom: side(hour || r <= HEAD_ROWS ? COLORS.lineHour : COLORS.line) };
       }
       if (!cell.alignment) cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -359,12 +362,12 @@ export async function buildCsv(months, fileName, onlyTypes = null) {
 // 書き出す。months:[{ year, month }]。onlyTypes:種類の id の一覧(しぼるとき)。戻り値は File
 export async function buildXlsx(months, fileName, onlyTypes = null) {
   const ExcelJS = await loadExcelJS();
-  const [types, rules, students] = await Promise.all([store.getTypes(), store.getDurationRules(), store.getStudentOverview()]);
+  const [types, rules, students, hours] = await Promise.all([store.getTypes(), store.getDurationRules(), store.getStudentOverview(), store.getDisplayHours()]);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'レッスン帳';
   workbook.created = new Date();
   for (const { year, month } of months) {
-    await addMonthSheet(workbook, year, month, { types, rules, students, onlyTypes });
+    await addMonthSheet(workbook, year, month, { types, rules, students, onlyTypes, startHour: hours.start });
   }
   // 予定の一覧(1件1行。並べ替え・絞り込み・ピボットに使いやすい形)
   const rows = await lessonRows(months, onlyTypes, types, rules);

@@ -2,11 +2,11 @@
 import { holidayName } from './holidays.js';
 import { lessonColor } from './store.js';
 
-export const START_HOUR = 6;      // 表の最初の時刻 6:00
+export const START_HOUR = 4;      // 入力できる最初の時刻 4:00(表には設定の「表に出す時間」から出す)
 export const END_HOUR = 23;       // 最後の行は 23:30(24:00まで)
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
-// 6:00, 6:30, ... 23:30 の一覧
+// 4:00, 4:30, ... 23:30 の一覧
 export function timeSlots() {
   const slots = [];
   for (let h = START_HOUR; h <= END_HOUR; h++) {

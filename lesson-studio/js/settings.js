@@ -37,10 +37,10 @@ export function initSettings(opts) {
   }
 }
 
-// 表に出す時間(はじめ 6〜12時、おわり 18〜24時)
+// 表に出す時間(はじめ 4〜12時、おわり 18〜24時)
 function renderHours({ start, end }) {
   const opt = (h, sel) => `<option value="${h}" ${h === sel ? 'selected' : ''}>${h}:00</option>`;
-  document.getElementById('hours-start').innerHTML = [6, 7, 8, 9, 10, 11, 12].map(h => opt(h, start)).join('');
+  document.getElementById('hours-start').innerHTML = [4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => opt(h, start)).join('');
   document.getElementById('hours-end').innerHTML = [18, 19, 20, 21, 22, 23, 24].map(h => opt(h, end)).join('');
 }
 async function saveHours() {

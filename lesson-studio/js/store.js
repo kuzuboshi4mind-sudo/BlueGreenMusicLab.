@@ -1082,7 +1082,7 @@ export async function renameStudent(oldName, newName) {
 // { start: 6, end: 24 }(何時から何時まで表に出すか。どの端末でも同じ)
 export async function getDisplayHours() {
   const v = (await db.getSetting('displayHours')) || {};
-  const start = Math.min(12, Math.max(6, Number(v.start) || 6));
+  const start = Math.min(12, Math.max(4, Number(v.start) || 6));
   const end = Math.min(24, Math.max(start + 1, Number(v.end) || 24));
   return { start, end };
 }
