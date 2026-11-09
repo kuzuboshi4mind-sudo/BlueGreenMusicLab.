@@ -33,6 +33,7 @@ let extras = {};
 let allNames = [];         // 生徒の一覧の名前(まとめて送る人の検索に使う)
 let addCounts = {};        // まとめて送る人に足した回数(よく足す人を先に出す)
 let templates = null;      // ひな形の3パターン { active, list:[{ name, text }] }
+let profile = { studio: '', teacher: '' };   // 教室名・講師名({教室}{講師} に入れる)
 let types = [];
 let current = [];          // いまの文面に入っている予定
 let shown = [];            // 期間の中の予定(チェックの一覧に出しているもの)
@@ -153,7 +154,7 @@ export async function openLineShare(name, opts = {}) {
   renderMembers();
   const options = rangeOptions();
   range.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-  [templates, addCounts] = await Promise.all([store.getLineTemplates(), store.getLineAddCounts()]);
+  [templates, addCounts, profile] = await Promise.all([store.getLineTemplates(), store.getLineAddCounts(), store.getProfile()]);
   showTemplate();
   // はじめに選ぶ期間:来月(入力画面から今月の予定を開いたときは、その予定が見えるよう「今月と来月」)
   const m1 = options.find(o => o.value === 'm1');
@@ -292,7 +293,9 @@ function writeText() {
   text.value = (template.value || store.DEFAULT_LINE_TEMPLATE)
     .replaceAll('{名前}', members.join('・'))
     .replaceAll('{期間}', option.periodText)
-    .replaceAll('{予定}', blocks.length ? blocks.join('\n\n') : '(この期間の予定はありません)');
+    .replaceAll('{予定}', blocks.length ? blocks.join('\n\n') : '(この期間の予定はありません)')
+    .replaceAll('{教室}', profile.studio)
+    .replaceAll('{講師}', profile.teacher);
   count.textContent = lessons.length
     ? `${lessons.length}件の予定を入れました。`
     : '送る予定にチェックを付けてください。';

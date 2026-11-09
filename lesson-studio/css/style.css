@@ -473,6 +473,7 @@ body {
 
 /* 入力欄(iPhone で勝手に拡大されないよう 16px 以上) */
 .sheet input[type="text"],
+.sheet input[type="number"],
 .sheet input[type="date"],
 .sheet select,
 .sheet textarea {
@@ -1070,7 +1071,7 @@ body.month-tentative .calendar-scroll { border-top: 4px dashed var(--tentative);
 .reschedule-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .student-badge.waiting { background: var(--line); color: var(--text); }
 /* 「👤 生徒」ボタンの数字(連絡が必要な人数) */
-#open-students { position: relative; }
+#open-students, #open-fees { position: relative; }
 .count-badge {
   position: absolute;
   top: -6px;
@@ -1460,3 +1461,59 @@ body.offline .calendar-scroll { border-top: 4px solid var(--tentative); }
 .missing-main small { color: var(--muted); font-size: 0.85rem; }
 .missing-row .btn { flex: none; white-space: nowrap; }
 .missing-empty { padding: 12px 0; color: var(--muted); }
+
+/* ---- 汎用版で足した部分 ---- */
+.two-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .two-fields { grid-template-columns: 1fr; } }
+.xlsx-types { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.xlsx-type { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+
+/* 料金と年間回数(生徒の画面) */
+.plan-box { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; margin: 12px 0; }
+.plan-box legend { font-weight: 700; padding: 0 6px; }
+.plan-box input:disabled { opacity: 0.45; }
+
+/* 年間回数の棒グラフ */
+.annual { display: grid; gap: 6px; margin-top: 6px; }
+.annual-name { font-size: 16px; }
+.annual-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14px; }
+.annual-head > span:first-child { color: var(--muted); font-size: 13px; }
+.pace { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--head); }
+.pace.ahead { background: #dff3e6; color: #1b6e3c; }
+.pace.behind { background: #fde6d4; color: #a14a0c; }
+.annual-bar { position: relative; display: flex; height: 14px; border-radius: 7px; background: var(--head); overflow: hidden; }
+.annual-bar .seg { height: 100%; }
+.seg.done, .dot.done { background: var(--accent); }
+.seg.booked, .dot.booked { background: #7cc7bd; }
+.seg.tent, .dot.tent { background: repeating-linear-gradient(45deg, #f2b866 0 4px, #f8d9a8 4px 8px); }
+.annual-bar .expected { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--text); opacity: 0.7; }
+.annual-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); }
+.annual-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.annual-warn { margin: 0; font-size: 13px; color: #a14a0c; font-weight: 700; }
+.annual-list { display: grid; gap: 10px; }
+.annual-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.annual-open { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 10px 14px; color: inherit; font: inherit; cursor: pointer; }
+
+/* 月謝の画面 */
+.fees-tabs { display: flex; gap: 8px; margin: 4px 0 10px; }
+.fees-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 10px; font-size: 17px; }
+.fees-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.fees-sum > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); display: grid; }
+.fees-sum span { font-size: 12px; color: var(--muted); }
+.fees-sum strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.fees-sum .ok { color: var(--accent); }
+.fees-sum .ng { color: var(--danger); }
+.fees-list { list-style: none; margin: 0 0 12px; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.fee-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.fee-row:last-child { border-bottom: 0; }
+.fee-main { flex: 1; min-width: 140px; text-align: left; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; display: grid; }
+.fee-main small { color: var(--muted); }
+.sheet input.fee-amount { width: 104px; flex: none; min-height: 36px; text-align: right; font-size: 16px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; }
+.fee-buttons { display: flex; gap: 6px; }
+.fee-paid[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.notice-text-area { width: 100%; font: inherit; font-size: 15px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); margin-bottom: 10px; }
+@media (prefers-color-scheme: dark) {
+  .pace.ahead { background: #183a26; color: #8fe0ae; }
+  .pace.behind { background: #3d2814; color: #f3b27a; }
+  .annual-warn { color: #f3b27a; }
+}

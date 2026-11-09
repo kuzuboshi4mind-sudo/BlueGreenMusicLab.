@@ -1,7 +1,7 @@
 {
-  "name": "レッスンスケジュール",
-  "short_name": "レッスン",
-  "description": "レッスンの月間スケジュール管理",
+  "name": "レッスン帳",
+  "short_name": "レッスン帳",
+  "description": "音楽講師のための月間スケジュール・生徒・月謝・年間回数の管理",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

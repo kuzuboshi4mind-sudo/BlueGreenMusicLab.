@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <title>レッスンスケジュール</title>
+  <title>レッスン帳</title>
   <!-- アプリのアイコンとホーム画面に追加したときの設定 -->
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="レッスン">
+  <meta name="apple-mobile-web-app-title" content="レッスン帳">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f3f8f7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0d1716" media="(prefers-color-scheme: dark)">
@@ -23,7 +23,7 @@
   <div id="login-screen" class="login-screen" hidden>
     <form id="login-form" class="login-card">
       <img src="icons/icon.svg" alt="" class="login-icon" width="88" height="88">
-      <h1>レッスンスケジュール</h1>
+      <h1>レッスン帳</h1>
       <label class="field">
         <span class="field-label">メールアドレス</span>
         <input type="email" id="login-email" autocomplete="username" autocapitalize="off" required>
@@ -56,6 +56,7 @@
       <!-- 1日表示のときだけ:その日の生徒全員のメモ -->
       <button type="button" id="day-memos" class="btn" aria-label="この日の生徒メモ" hidden>📝<span class="btn-label"> メモ</span></button>
       <button type="button" id="zoom-fit" class="btn zoom-btn" aria-pressed="false" title="2本指でつまむ・広げるでも拡大・縮小できます">1か月表示</button>
+      <button type="button" id="open-fees" class="btn" aria-label="月謝">💴<span class="btn-label"> 月謝</span><span id="fees-badge" class="count-badge" hidden></span></button>
       <button type="button" id="open-students" class="btn" aria-label="生徒メモ">👤<span class="btn-label"> 生徒</span><span id="students-badge" class="count-badge" hidden></span></button>
       <button type="button" id="open-settings" class="btn" aria-label="設定">⚙<span class="btn-label"> 設定</span></button>
     </nav>
@@ -218,6 +219,17 @@
     <p id="app-version" class="sheet-note app-version"></p>
 
     <section class="settings-section">
+      <h3>教室の情報</h3>
+      <p class="sheet-note">月謝のお知らせや LINE の文面に {教室}・{講師} として入ります。</p>
+      <div class="two-fields">
+        <label class="field"><span class="field-label">教室名</span>
+          <input type="text" id="profile-studio" autocomplete="off" placeholder="例:ひまわり音楽教室"></label>
+        <label class="field"><span class="field-label">講師名</span>
+          <input type="text" id="profile-teacher" autocomplete="off" placeholder="例:山田 花子"></label>
+      </div>
+    </section>
+
+    <section class="settings-section">
       <h3>保存先とアカウント</h3>
       <p id="account-info" class="sheet-note"></p>
       <button type="button" id="logout" class="btn" hidden>ログアウト</button>
@@ -262,32 +274,12 @@
     </section>
 
     <section class="settings-section">
-      <h3>メモアプリとつなぐ</h3>
-      <p class="sheet-note">レッスンメモ(メモアプリ)と同じメールアドレスとパスワードでログインすると、生徒の画面に、その生徒の名前が入っているメモが「メモアプリの記録」として出ます(読むだけ。メモアプリの中身は変えません)。この端末で1回つなげば、次からは自動です。</p>
-      <p id="memo-link-status" class="sheet-note"></p>
-      <div id="memo-link-form">
-        <label class="field"><span class="field-label">メモアプリのメールアドレス</span>
-          <input type="email" id="memo-link-email" autocomplete="username" autocapitalize="off"></label>
-        <label class="field"><span class="field-label">パスワード</span>
-          <input type="password" id="memo-link-password" autocomplete="current-password"></label>
+      <h3>Excel 形式で書き出す</h3>
+      <p class="sheet-note">表を Excel 形式(.xlsx)のファイルにします。Numbers・Excel・Google スプレッドシートで開くと、色つきの表と集計・生徒の一覧が出ます。月ごとに1枚のシートになります。スクールに提出する分だけを出すときは、種類のチェックをしぼってください(日ごとのメモとマスの色は出しません)。</p>
+      <div class="field">
+        <span class="field-label">書き出す種類</span>
+        <div id="xlsx-types" class="xlsx-types"></div>
       </div>
-      <p id="memo-link-error" class="form-error" role="alert"></p>
-      <div class="button-row">
-        <button type="button" id="memo-link-connect" class="btn btn-primary">つなぐ</button>
-        <button type="button" id="memo-link-disconnect" class="btn" hidden>つなぐのをやめる</button>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h3>Numbers に書き出す</h3>
-      <p class="sheet-note">表を Excel 形式(.xlsx)のファイルにします。Numbers で開くと、今の Numbers と同じ形の表(色つき)と集計・生徒の一覧が出ます。月ごとに1枚のシートになります。</p>
-      <label class="field">
-        <span class="field-label">書き出す予定</span>
-        <select id="xlsx-filter">
-          <option value="all">すべての予定</option>
-          <option value="oki">OKI川口・OKI加茂だけ</option>
-        </select>
-      </label>
       <div class="button-row">
         <button type="button" id="xlsx-month" class="btn">表示中の月</button>
         <button type="button" id="xlsx-year" class="btn">この年の1〜12月</button>
@@ -297,7 +289,7 @@
     <section class="settings-section">
       <h3>種類と色</h3>
       <p class="sheet-note">色の丸をタップすると色を選べます。上から順に、入力画面と色の見本に並びます。</p>
-      <button type="button" id="numbers-colors" class="btn">Numbers と同じ色にする</button>
+      <button type="button" id="default-colors" class="btn">初期の色に戻す</button>
       <ul id="type-list" class="type-list"></ul>
       <button type="button" id="add-type" class="btn">+ 種類を追加</button>
     </section>
@@ -364,6 +356,46 @@
     <ul id="missing-list" class="missing-list"></ul>
   </dialog>
 
+  <!-- 月謝と年間回数(汎用版で追加。js/fees.js) -->
+  <dialog id="fees-dialog" class="sheet">
+    <div class="sheet-head">
+      <h2 id="fees-title" tabindex="-1">月謝</h2>
+      <button type="button" class="btn btn-primary" data-close>閉じる</button>
+    </div>
+    <div class="fees-tabs" role="tablist">
+      <button type="button" class="btn toggle-btn" data-tab="month" aria-pressed="true">月ごとの月謝</button>
+      <button type="button" class="btn toggle-btn" data-tab="annual" aria-pressed="false">年間回数</button>
+    </div>
+    <div id="fees-month">
+      <div class="fees-nav">
+        <button type="button" class="btn" data-month="-1" aria-label="前の月">◀</button>
+        <strong id="fees-month-label"></strong>
+        <button type="button" class="btn" data-month="1" aria-label="次の月">▶</button>
+      </div>
+      <div id="fees-sum" class="fees-sum"></div>
+      <ul id="fees-list" class="fees-list"></ul>
+      <p class="sheet-note">金額の欄が空なら自動で計算します(月謝はそのまま、1回ごとは「確約+欠席(消化)」の回数×金額。仮とキャンセルは数えません)。手で入れた金額はその月だけに使います。料金は生徒の画面の「料金と年間回数」で決めます。</p>
+    </div>
+    <div id="fees-annual" hidden>
+      <div id="annual-list" class="annual-list"></div>
+      <p class="sheet-note">「消化」は今日までの確約と欠席(消化)、「確約の予定」はこれからの確約です。縦の線は、年度の日数で割った今日までの目安です。年間回数は生徒の画面の「料金と年間回数」で決めます。</p>
+    </div>
+  </dialog>
+
+  <!-- 月謝のお知らせ(文面を作って、コピーか LINE で送る) -->
+  <dialog id="fee-notice-dialog" class="sheet sheet-small">
+    <div class="sheet-head">
+      <h2 id="fee-notice-title" tabindex="-1">月謝のお知らせ</h2>
+      <button type="button" class="btn btn-primary" data-close>閉じる</button>
+    </div>
+    <p id="fee-notice-to" class="sheet-note"></p>
+    <textarea id="fee-notice-text" rows="10" class="notice-text-area"></textarea>
+    <div class="button-row">
+      <button type="button" id="fee-notice-copy" class="btn">文面をコピー</button>
+      <a id="fee-notice-line" class="btn btn-line" target="_blank" rel="noopener">LINE を開く</a>
+    </div>
+  </dialog>
+
   <!-- 生徒メモの一覧 -->
   <dialog id="students-dialog" class="sheet">
     <div class="sheet-head">
@@ -411,6 +443,24 @@
       </label>
       <!-- メモアプリの記録(その生徒の名前が入っている行。読むだけ) -->
       <div id="student-memoapp" class="student-memoapp" hidden></div>
+      <!-- 料金と年間回数(汎用版で追加) -->
+      <fieldset class="plan-box">
+        <legend>料金と年間回数</legend>
+        <div class="two-fields">
+          <label class="field"><span class="field-label">料金</span>
+            <select id="plan-kind"><option value="monthly">月謝(毎月定額)</option><option value="per">1回ごと</option><option value="none">なし・未設定</option></select></label>
+          <label class="field"><span class="field-label">金額(円)</span>
+            <input type="number" id="plan-amount" inputmode="numeric" min="0" step="100" placeholder="例:8000"></label>
+        </div>
+        <div class="two-fields">
+          <label class="field"><span class="field-label">年間の回数</span>
+            <input type="number" id="plan-annual" inputmode="numeric" min="0" max="300" placeholder="決まっていなければ空">
+            <small class="field-help">例:年間40回のコース。消化・残りを数えます</small></label>
+          <label class="field"><span class="field-label">年度の始まり</span>
+            <select id="plan-start"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select></label>
+        </div>
+        <div id="plan-progress"></div>
+      </fieldset>
       <div id="student-info" class="student-info"></div>
       <div class="sheet-actions">
         <button type="button" id="student-delete" class="btn btn-danger">この生徒を削除</button>
@@ -475,7 +525,7 @@
     <p class="sheet-note">「LINE を開く」を押すと LINE の「送信先を選択」の画面が開きます。上の「送り先」の人を選んで送ってください。押すと、この予定に「送った印」が付きます(生徒の一覧で「返事待ち」になります)。</p>
     <details class="line-template">
       <summary>選んでいるパターンのひな形(いつもの文面)を変える</summary>
-      <p class="sheet-note">{名前}・{期間}・{予定} のところに、自動で中身が入ります。パターンは3つまで保存できます。</p>
+      <p class="sheet-note">{名前}・{期間}・{予定}・{教室}・{講師} のところに、自動で中身が入ります。パターンは3つまで保存できます。</p>
       <label class="field">
         <span class="field-label">パターンの名前</span>
         <input type="text" id="line-template-name" autocomplete="off" placeholder="例:ふつう・家族向け・お休みのお知らせ">

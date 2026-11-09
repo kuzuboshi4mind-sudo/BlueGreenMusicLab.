@@ -11,6 +11,7 @@ import * as store from './store.js';
 import { escapeHtml } from './calendar.js';
 import { openLineShare } from './line-share.js';
 import * as memoLink from './memo-link.js';
+import { progressHtml } from './plan-view.js';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -33,6 +34,11 @@ const f = {
   info: document.getElementById('student-info'),
   del: document.getElementById('student-delete'),
   line: document.getElementById('student-line'),
+  planKind: document.getElementById('plan-kind'),
+  planAmount: document.getElementById('plan-amount'),
+  planAnnual: document.getElementById('plan-annual'),
+  planStart: document.getElementById('plan-start'),
+  planProgress: document.getElementById('plan-progress'),
 };
 
 let onChanged = () => {};
@@ -61,6 +67,7 @@ export function initStudents(opts) {
     d.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => d.close()));
   }
   form.addEventListener('submit', onSave);
+  f.planKind.addEventListener('change', syncPlanFields);
   f.del.addEventListener('click', onDelete);
   f.line.addEventListener('click', () => openLineShare(editing.name, { onSent: refreshAfterSend }));
   f.sent.addEventListener('click', async e => {
@@ -252,9 +259,30 @@ async function openStudent(student) {
   f.del.hidden = isNew;
   f.line.hidden = isNew;
   f.info.innerHTML = isNew ? '' : await infoHtml(editing);
+  await fillPlan(isNew ? '' : editing.name);
   dialog.showModal();
   renderMemoApp(isNew ? '' : editing.name);
   if (isNew) f.name.focus(); else f.title.focus();
+}
+
+// 料金と年間回数(汎用版で追加):今の内容を入れて、年間回数の進み具合を出す
+async function fillPlan(name) {
+  const plan = name ? await store.getPlan(name) : store.emptyPlan();
+  f.planKind.value = plan.fee.kind;
+  f.planAmount.value = plan.fee.amount || '';
+  f.planAnnual.value = plan.annual.count || '';
+  f.planStart.value = String(plan.annual.startMonth || 4);
+  syncPlanFields();
+  f.planProgress.innerHTML = name && plan.annual.count ? progressHtml(await store.getAnnualProgress(name, plan)) : '';
+}
+function syncPlanFields() {
+  f.planAmount.disabled = f.planKind.value === 'none';
+}
+function readPlan() {
+  return {
+    fee: { kind: f.planKind.value, amount: Math.max(0, Number(f.planAmount.value) || 0) },
+    annual: { count: Math.max(0, Math.round(Number(f.planAnnual.value) || 0)), startMonth: Number(f.planStart.value) || 4 },
+  };
 }
 
 // メモアプリの記録:その生徒の名前が入っているメモを、新しい順に出す(画面を開いてから読み込む)
@@ -292,6 +320,10 @@ async function onSave(e) {
     if (memo || editing.id || !editing.name || lineName !== (editing.lineName || '')) {
       await store.saveStudent({ id: editing.id, name, memo, lineName });
     }
+    // 料金と年間回数(変わったときだけ保存される)
+    const plan = readPlan();
+    const hadPlan = editing.name ? (await store.getStudentExtras())[name]?.plan : null;
+    if (hadPlan || plan.fee.kind !== 'none' || plan.annual.count) await store.savePlan(name, plan);
   } catch (err) {
     f.error.textContent = `保存できませんでした(${err.message})`;
     return;

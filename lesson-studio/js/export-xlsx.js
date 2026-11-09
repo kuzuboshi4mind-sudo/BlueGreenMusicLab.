@@ -1,10 +1,10 @@
-// Numbers への書き出し(Excel 形式 .xlsx)
+// Excel 形式(.xlsx)への書き出し。Numbers・Excel・Google スプレッドシートで開ける
 // ・1か月を1枚のシート(Numbers ではタブ)にする。仮の月はシート名が「10月仮」
 // ・表の形は今の Numbers と同じ:縦=30分刻みの時刻、横=日付。上に「曜日」「予定」の行
 // ・予定は種類の色で塗る(確約=濃い色(○は付けない。2026-10-31)、仮=薄い色+点線の枠、キャンセル=灰色+×、なし=左に太い線)
 // ・60分以上の予定は、たてにマスをつなげる(重なりがないとき)
 // ・表の下に集計、右に生徒の一覧(名前の色=種類、メモ)
-// ・種類をしぼって書き出せる(OKI川口・OKI加茂だけ など。2026-10-31)。しぼったときは、その種類の予定・集計・生徒だけを出し、
+// ・種類をしぼって書き出せる(スクールに出す分だけ など)。しぼったときは、その種類の予定・集計・生徒だけを出し、
 //   「予定」の行のメモとマスの色は出さない(自分の予定が入らないように)
 // Excel 形式のファイルを作る部品(ExcelJS)は、書き出すときだけ読み込む
 import * as store from './store.js';
@@ -219,7 +219,7 @@ async function addMonthSheet(workbook, year, month, common) {
   // ---- 表の下:集計 ----
   const s = computeSummary(lessons, types, rules);
   let r = lastRow + 2;
-  ws.getRow(r).getCell(2).value = `${month}月の集計${onlyTypes ? '(OKI川口・OKI加茂だけ)' : ''}`;
+  ws.getRow(r).getCell(2).value = `${month}月の集計${onlyTypes ? `(${types.filter(t => onlyTypes.includes(t.id)).map(t => t.name).join('・')}だけ)` : ''}`;
   ws.getRow(r).getCell(2).font = { bold: true, size: 12 };
   r++;
   const headers = ['種類', '', '確約 件数', '確約 時間数(h)', 'コマ数(30分)', '仮 件数', '仮 時間数(h)'];
@@ -317,17 +317,12 @@ async function addMonthSheet(workbook, year, month, common) {
   return ws;
 }
 
-// OKI川口・OKI加茂の種類(id が初期のものか、名前が「OKI」で始まるもの)
-export function okiTypeIds(types) {
-  return types.filter(t => ['oki-kawaguchi', 'oki-kamo'].includes(t.id) || /^OKI/i.test(t.name)).map(t => t.id);
-}
-
 // 書き出す。months:[{ year, month }]。onlyTypes:種類の id の一覧(しぼるとき)。戻り値は File
 export async function buildXlsx(months, fileName, onlyTypes = null) {
   const ExcelJS = await loadExcelJS();
   const [types, rules, students] = await Promise.all([store.getTypes(), store.getDurationRules(), store.getStudentOverview()]);
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'レッスンスケジュール';
+  workbook.creator = 'レッスン帳';
   workbook.created = new Date();
   for (const { year, month } of months) {
     await addMonthSheet(workbook, year, month, { types, rules, students, onlyTypes });

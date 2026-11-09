@@ -31,23 +31,18 @@ const KEYS = {
 // 種類(場所)の初期値。手順4の設定画面で追加・変更できるようにする
 // countInTotal:集計に入れるかどうか
 const DEFAULT_TYPES = [
-  { id: 'home',     name: '自宅',     color: '#bce98a', countInTotal: true },   // 2026-10-16 に少し薄く(元は #ade467。#c9eda0 は薄すぎたので中間)
-  { id: 'oki-kawaguchi', name: 'OKI川口', color: '#f0bc00', countInTotal: true },
-  { id: 'oki-kamo', name: 'OKI加茂',  color: '#fe8468', countInTotal: true },
-  { id: 'sunpal',   name: 'サンパル', color: '#3fe8e9', countInTotal: true },
-  { id: 'visit',    name: '訪問',     color: '#5c70f4', countInTotal: true },
+  { id: 'home',     name: '自宅教室',   color: '#bce98a', countInTotal: true },
+  { id: 'school',   name: 'スクール',   color: '#f0bc00', countInTotal: true },
+  { id: 'group',    name: 'グループ',   color: '#fe8468', countInTotal: true },
+  { id: 'visit',    name: '出張・訪問', color: '#5c70f4', countInTotal: true },
   { id: 'online',   name: 'オンライン', color: '#2bb8ba', countInTotal: true },
-  // JINIS は Numbers と同じく曜日で色を変える(月=薄い黄・火=薄いピンク・木=薄い水色。ほかの曜日は color)
-  { id: 'jinis',    name: 'JINIS',    color: '#ffdbd8', countInTotal: true, weekdayColors: { 1: '#ffe37f', 2: '#ffdbd8', 4: '#9fdcf7' } },   // 木の水色は 2026-10-16 に少し濃く(元は #cbf0ff)
-  { id: 'sauna',    name: 'サウナ',   color: '#d7bfae', countInTotal: false },
-  { id: 'practice', name: '練習',     color: '#9edbd2', countInTotal: false },
-  { id: 'live',     name: 'ライブ',   color: '#d9c2f0', countInTotal: false },
-  { id: 'fishing',  name: '釣り',     color: '#a9c8ee', countInTotal: false },   // 2026-10-16 に追加
-  { id: 'other',    name: 'その他',   color: '#c4e8f8', countInTotal: false },   // 2026-10-16 に灰色(#d9d9d9)から水色に。表では半透明(60%)で塗るので、JINIS より薄く見える
+  { id: 'practice', name: '練習',       color: '#9edbd2', countInTotal: false },
+  { id: 'live',     name: '本番・ライブ', color: '#d9c2f0', countInTotal: false },
+  { id: 'other',    name: 'その他',     color: '#c4e8f8', countInTotal: false },   // 表では半透明(60%)で塗る
 ];
 
-// Numbers で使っていた色(2026-10-16 から初期値。設定画面の「Numbers と同じ色にする」でも使う)
-export const NUMBERS_COLORS = Object.fromEntries(DEFAULT_TYPES.map(t => [t.id, t.color]));
+// 初期の色(設定画面の「初期の色に戻す」で使う)
+export const DEFAULT_COLORS = Object.fromEntries(DEFAULT_TYPES.map(t => [t.id, t.color]));
 
 // 予定の状態。仮=まだ確定していない、確約=確定(○)、キャンセル(×)、
 // 欠席=生徒が休んだが、レッスンは消化したものとして数える(確約と同じく集計に入れる。振替は不要。2026-11-04)
@@ -95,7 +90,8 @@ export async function getTypes() {
 
 // あとから増えた種類(2026-10-16 の「ライブ」)を、保存済みの種類にも1回だけ足す
 // (一度足したら記録するので、本人が設定で削除したらもう足さない)
-const TYPE_MIGRATIONS = ['live', 'home-softer', 'home-soft2', 'fishing', 'other-lightblue', 'jinis-thu-deeper', 'other-translucent', 'private-uncounted'];
+// 汎用版では、今のところ引き継ぎはない(初期の種類を増やしたときにここへ足す)
+const TYPE_MIGRATIONS = [];
 // 色を変える引き継ぎ:保存済みの色がこれまでの初期の色のままなら、新しい色にする(自分で選んだ色は変えない)
 const COLOR_MIGRATIONS = {
   'home-softer': { id: 'home', from: ['#ade467', '#4caf50'], to: '#c9eda0' },
@@ -139,11 +135,10 @@ async function addNewDefaultTypes(saved) {
   return types;
 }
 
-// 予定を塗る色(種類の色。JINIS のように曜日で色が変わる種類は、その曜日の色)
-const JINIS_WEEKDAY_COLORS = { 1: '#ffe37f', 2: '#ffdbd8', 4: '#9fdcf7' };
+// 予定を塗る色(種類の色。weekdayColors がある種類は、その曜日の色)
 export function lessonColor(lesson, type) {
   if (!type) return '#9e9e9e';
-  const byWeekday = type.weekdayColors || (type.id === 'jinis' ? JINIS_WEEKDAY_COLORS : null);
+  const byWeekday = type.weekdayColors || null;
   if (byWeekday && lesson?.date) {
     const [y, m, d] = lesson.date.split('-').map(Number);
     const c = byWeekday[new Date(y, m - 1, d).getDay()];
@@ -589,11 +584,11 @@ export async function buildBackup(year, month, src = null) {
   const s = src || db;
   const setting = (key, fallback) => s.getSetting(key).then(v => v || fallback);
   const [from, to] = year ? monthRange(year, month) : [ALL_FROM, ALL_TO];
-  const [lessons, dayNotes, types, durationRules, slots, exceptions, students, hiddenStudents, tentativeMonths, studentExtras, allColors] = await Promise.all([
+  const [lessons, dayNotes, types, durationRules, slots, exceptions, students, hiddenStudents, tentativeMonths, studentExtras, allColors, profile, payments] = await Promise.all([
     s.listLessons(from, to), s.listNotes(from, to), src ? setting('types', DEFAULT_TYPES) : getTypes(),
     setting('durationRules', DEFAULT_DURATION_RULES),
     s.listSlots(), s.listExceptions(ALL_FROM, ALL_TO), s.listStudents(), setting('hiddenStudents', []), s.listMonths(),
-    setting('studentExtras', {}), setting('cellColors', {}),
+    setting('studentExtras', {}), setting('cellColors', {}), setting('profile', null), setting('payments', {}),
   ]);
   const months = year
     ? [`${year}-${String(month).padStart(2, '0')}`]
@@ -603,7 +598,7 @@ export async function buildBackup(year, month, src = null) {
     exportedAt: new Date().toISOString(),
     lessons: lessons.map(({ deletedAt, ...l }) => l),
     dayNotes,
-    settings: { types, durationRules, hiddenStudents, studentExtras },
+    settings: { types, durationRules, hiddenStudents, studentExtras, profile, payments },   // studentExtras に料金・年間回数も入る
     recurring: { slots, exceptions },   // 毎週の固定枠(どの月の書き出しにも全部入れる)
     students,                           // 生徒メモ(どの月の書き出しにも全部入れる)
     tentativeMonths: months.filter(ym => tentativeMonths[ym]),   // 仮の月
@@ -744,6 +739,8 @@ export async function restoreBackup(data, { withSettings = false } = {}) {
     if (data.settings.durationRules) await saveDurationRules(data.settings.durationRules);
     if (data.settings.hiddenStudents) await db.setSetting('hiddenStudents', data.settings.hiddenStudents);
     if (data.settings.studentExtras) await db.setSetting('studentExtras', data.settings.studentExtras);
+    if (data.settings.profile) await db.setSetting('profile', data.settings.profile);
+    if (data.settings.payments) await db.setSetting('payments', data.settings.payments);
   }
   return { lessons: data.lessons.length, changed: lessonChanges.length + noteChanges.length };
 }
@@ -1054,11 +1051,34 @@ export async function renameStudent(oldName, newName) {
     }
     settings.push({ key: 'studentExtras', before: extras, after });
   }
+  // 入金の記録(月謝)も新しい名前に移す
+  const payments = (await db.getSetting('payments')) || {};
+  if (Object.values(payments).some(m => m[oldName])) {
+    const after = {};
+    for (const [ym, m] of Object.entries(payments)) {
+      const month = { ...m };
+      if (month[oldName]) { month[newName] = { ...month[oldName], ...(month[newName] || {}) }; delete month[oldName]; }
+      after[ym] = month;
+    }
+    settings.push({ key: 'payments', before: payments, after });
+  }
   await commit({
     label: `名前の変更(${oldName} → ${newName})`,
     lessons: lessonChanges, slots: slotChanges, students: studentChanges, settings,
   });
   return lessonChanges.length + slotChanges.length;
+}
+
+// ---- 教室の情報(教室名・講師名)----
+// 月謝のお知らせや LINE の文面の {教室}・{講師} に入る。{ studio, teacher }(設定の profile)
+export async function getProfile() {
+  return { studio: '', teacher: '', ...((await db.getSetting('profile')) || {}) };
+}
+export async function saveProfile(profile) {
+  const before = await getProfile();
+  const after = { ...before, ...profile };
+  if (before.studio === after.studio && before.teacher === after.teacher) return;
+  await commit({ label: '教室の情報', settings: [{ key: 'profile', before, after }] });
 }
 
 // ---- 仮の月 ----
@@ -1141,4 +1161,141 @@ export async function confirmLessons(lessons) {
   if (!lessonChanges.length) return 0;
   await commit({ label: `確約にする:${nameOf(lessons[0])}(${lessonChanges.length}件)`, lessons: lessonChanges, exceptions });
   return lessonChanges.length;
+}
+
+
+// =========================================================
+// 月謝と年間回数(汎用版で追加)
+// =========================================================
+// 生徒ごとの料金と契約は studentExtras[名前].plan に入れる(名前の変更・バックアップでそのまま引き継がれる)
+//   plan = {
+//     fee: { kind: 'monthly'(月謝・毎月定額) | 'per'(1回ごと) | 'none'(なし), amount: 円 },
+//     annual: { count: 年間の回数(0 なら使わない), startMonth: 年度の始まりの月(1〜12) },
+//   }
+// 入金の記録は設定の payments に入れる:{ 'YYYY-MM': { 名前: { paid, paidDate, amount(手入力の請求額。null なら自動) } } }
+// 「消化した回」:確約と欠席(消化)。仮は数えない(参考に別に出す)。キャンセル・自分の予定・集計しない種類は数えない
+
+export const FEE_KINDS = [
+  { id: 'monthly', label: '月謝(毎月定額)' },
+  { id: 'per', label: '1回ごと' },
+  { id: 'none', label: 'なし・未設定' },
+];
+
+export function emptyPlan() {
+  return { fee: { kind: 'none', amount: 0 }, annual: { count: 0, startMonth: 4 } };
+}
+function normalizePlan(plan) {
+  const e = emptyPlan();
+  return { fee: { ...e.fee, ...(plan?.fee || {}) }, annual: { ...e.annual, ...(plan?.annual || {}) } };
+}
+
+export async function getPlans() {
+  const extras = await getStudentExtras();
+  return Object.fromEntries(Object.entries(extras).filter(([, x]) => x.plan).map(([n, x]) => [n, normalizePlan(x.plan)]));
+}
+export async function getPlan(name) {
+  return normalizePlan((await getStudentExtras())[name]?.plan);
+}
+export async function savePlan(name, plan) {
+  const now = await getPlan(name);
+  const next = normalizePlan(plan);
+  if (JSON.stringify(now) === JSON.stringify(next)) return;
+  await commit({ label: `${name}さんの料金・年間回数`, settings: [await extrasChange(name, { plan: next })] });
+}
+
+const isConsumed = l => ['confirmed', 'absent'].includes(l.status || 'tentative');
+
+// ---- 入金の記録 ----
+export async function getPayments() {
+  return (await db.getSetting('payments')) || {};
+}
+export async function setPayment(ym, name, patch, label) {
+  const before = await getPayments();
+  const month = { ...(before[ym] || {}) };
+  month[name] = { ...(month[name] || {}), ...patch };
+  const after = { ...before, [ym]: month };
+  await commit({ label: label || `${name}さんの入金(${Number(ym.slice(5))}月)`, settings: [{ key: 'payments', before, after }] });
+}
+
+// その月の月謝の一覧
+// 戻り値:[{ name, plan, typeId, lessons:[その月のレッスン], consumed, tentative, cancelled, calc(自動の請求額), amount, overridden, paid, paidDate }]
+// 並ぶのは、料金を決めてある生徒(在籍)と、その月にレッスンがある生徒
+export async function getMonthFees(year, month) {
+  const ym = `${year}-${String(month).padStart(2, '0')}`;
+  const [lessons, types, hidden, extras, payments] = await Promise.all([
+    getLessons(year, month), getTypes(), getHiddenStudents(), getStudentExtras(), getPayments(),
+  ]);
+  const typeById = Object.fromEntries(types.map(t => [t.id, t]));
+  const hiddenSet = new Set(hidden);
+  const mine = lessons.filter(l => l.student && !hiddenSet.has(l.student) && isLessonLike(l, typeById));
+  const names = new Set(mine.map(l => l.student));
+  for (const [n, x] of Object.entries(extras)) {
+    if (!hiddenSet.has(n) && x.plan && normalizePlan(x.plan).fee.kind !== 'none') names.add(n);
+  }
+  const pay = payments[ym] || {};
+  const rows = [...names].map(name => {
+    const plan = normalizePlan(extras[name]?.plan);
+    const ls = mine.filter(l => l.student === name)
+      .sort((a, b) => (a.date + a.start.padStart(5, '0')).localeCompare(b.date + b.start.padStart(5, '0')));
+    const consumed = ls.filter(isConsumed).length;
+    const tentative = ls.filter(l => (l.status || 'tentative') === 'tentative').length;
+    const cancelled = ls.filter(l => l.status === 'cancelled').length;
+    const amount0 = Number(plan.fee.amount) || 0;
+    const calc = plan.fee.kind === 'monthly' ? amount0 : plan.fee.kind === 'per' ? amount0 * consumed : 0;
+    const p = pay[name] || {};
+    const overridden = p.amount !== null && p.amount !== undefined && p.amount !== '';
+    return {
+      name, plan, typeId: ls[0]?.typeId || null, lessons: ls, consumed, tentative, cancelled, calc,
+      amount: overridden ? Number(p.amount) : calc, overridden, paid: !!p.paid, paidDate: p.paidDate || '',
+    };
+  });
+  return rows.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+}
+
+// 年度(startMonth 始まり)の期間。date を含む年度の [始まり, 終わり]
+export function annualPeriod(startMonth, date = localToday()) {
+  const [y, m] = date.split('-').map(Number);
+  const sy = m >= startMonth ? y : y - 1;
+  const end = new Date(sy + 1, startMonth - 1, 0);   // 次の年度の始まりの前日
+  const pad = n => String(n).padStart(2, '0');
+  return [`${sy}-${pad(startMonth)}-01`, `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`];
+}
+
+// 年間回数の進み具合
+// 戻り値:{ count, from, to, done(消化済み=今日までの確約・欠席), booked(これからの確約), tentative(仮), cancelled,
+//          remaining(まだ入れていない回数 = count − done − booked), expected(今日までに消化しているはずの回数), pace(done − expected),
+//          over(確約+仮が年間回数を超えている), weeksLeft }
+export async function getAnnualProgress(name, plan, date = localToday()) {
+  const a = normalizePlan(plan).annual;
+  if (!a.count) return null;
+  const [from, to] = annualPeriod(Number(a.startMonth) || 4, date);
+  const [lessons, occurrences, types] = await Promise.all([db.listLessons(from, to), getOccurrences(from, to), getTypes()]);
+  const typeById = Object.fromEntries(types.map(t => [t.id, t]));
+  const ls = lessons.concat(occurrences).filter(l => l.student === name && isLessonLike(l, typeById));
+  const done = ls.filter(l => isConsumed(l) && l.date <= date).length;
+  const booked = ls.filter(l => l.status === 'confirmed' && l.date > date).length;
+  const tentative = ls.filter(l => (l.status || 'tentative') === 'tentative').length;
+  const cancelled = ls.filter(l => l.status === 'cancelled').length;
+  const day = s => new Date(s + 'T00:00:00').getTime();
+  const total = (day(to) - day(from)) / 86400000 + 1;
+  const passed = Math.min(total, Math.max(0, (day(date) - day(from)) / 86400000 + 1));
+  const expected = Math.round(a.count * passed / total * 10) / 10;
+  return {
+    count: a.count, startMonth: a.startMonth, from, to, done, booked, tentative, cancelled,
+    remaining: a.count - done - booked,
+    expected, pace: Math.round((done - expected) * 10) / 10,
+    over: done + booked + tentative > a.count,
+    weeksLeft: Math.max(0, Math.ceil((day(to) - day(date)) / 86400000 / 7)),
+  };
+}
+
+// 年間回数を決めてある生徒全員の進み具合(月謝の画面の「年間回数」で使う)
+export async function getAllAnnualProgress(date = localToday()) {
+  const [plans, hidden] = await Promise.all([getPlans(), getHiddenStudents()]);
+  const out = [];
+  for (const [name, plan] of Object.entries(plans)) {
+    if (hidden.includes(name) || !plan.annual.count) continue;
+    out.push({ name, plan, progress: await getAnnualProgress(name, plan, date) });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 }

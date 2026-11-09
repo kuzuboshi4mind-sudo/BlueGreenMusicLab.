@@ -2,7 +2,6 @@
 // 変更はその場で保存し、後ろの表にもすぐ反映する
 import * as store from './store.js';
 import { escapeHtml } from './calendar.js';
-import * as memoLink from './memo-link.js';
 
 // 色を選ぶときの見本(タップで選べる)。ここにない色は「ほかの色…」で自由に選べる
 const PALETTE = [
@@ -23,22 +22,36 @@ export function initSettings(opts) {
   document.getElementById('open-settings').addEventListener('click', openSettings);
   dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dialog.close()));
   document.getElementById('add-type').addEventListener('click', addType);
-  document.getElementById('numbers-colors').addEventListener('click', useNumbersColors);
+  document.getElementById('default-colors').addEventListener('click', useDefaultColors);
   document.getElementById('add-rule').addEventListener('click', addRule);
   typeList.addEventListener('click', onTypeClick);
   typeList.addEventListener('input', onTypeInput);
   typeList.addEventListener('change', onTypeInput);
   ruleList.addEventListener('change', onRuleChange);
   ruleList.addEventListener('click', onRuleClick);
+  // 教室の情報:入力欄から離れたときに保存する
+  for (const id of ['profile-studio', 'profile-teacher']) {
+    document.getElementById(id).addEventListener('change', saveProfile);
+  }
+}
+
+async function saveProfile() {
+  await store.saveProfile({
+    studio: document.getElementById('profile-studio').value.trim(),
+    teacher: document.getElementById('profile-teacher').value.trim(),
+  });
+  onChanged();
 }
 
 async function openSettings() {
-  [types, rules] = await Promise.all([store.getTypes(), store.getDurationRules()]);
+  let profile;
+  [types, rules, profile] = await Promise.all([store.getTypes(), store.getDurationRules(), store.getProfile()]);
+  document.getElementById('profile-studio').value = profile.studio;
+  document.getElementById('profile-teacher').value = profile.teacher;
   types = structuredClone(types);
   rules = structuredClone(rules);
   renderTypes();
   renderRules();
-  renderMemoLink();
   dialog.showModal();
   dialog.querySelector('h2').focus();
   dialog.scrollTop = 0;
@@ -47,10 +60,10 @@ async function openSettings() {
 // ---------------------------------------------------------
 // 種類と色
 // ---------------------------------------------------------
-// 今まで使っていた Numbers と同じ色にする(名前・集計に入れるか・自分で足した種類はそのまま)
-async function useNumbersColors() {
-  if (!confirm('種類の色を、Numbers で使っていた色にそろえますか?\n(自宅=黄緑、OKI川口=山吹、OKI加茂=サーモン、サンパル=水色、訪問=青、オンライン=青緑、JINIS=薄いピンク。自分で足した種類の色は変えません)')) return;
-  types = types.map(t => (store.NUMBERS_COLORS[t.id] ? { ...t, color: store.NUMBERS_COLORS[t.id] } : t));
+// 初期の種類の色を、はじめの色に戻す(名前・集計に入れるか・自分で足した種類はそのまま)
+async function useDefaultColors() {
+  if (!confirm('はじめからある種類の色を、初期の色に戻しますか?\n(自分で足した種類の色は変えません)')) return;
+  types = types.map(t => (store.DEFAULT_COLORS[t.id] ? { ...t, color: store.DEFAULT_COLORS[t.id] } : t));
   await saveTypes(-1);
 }
 
@@ -203,50 +216,3 @@ async function addRule() {
   rules.push({ minutes: min, hours: Math.round(min / 60 * 100) / 100 });
   await saveRules();
 }
-
-// ---------------------------------------------------------
-// メモアプリとつなぐ(js/memo-link.js)
-// ---------------------------------------------------------
-const ml = {
-  status: document.getElementById('memo-link-status'),
-  form: document.getElementById('memo-link-form'),
-  email: document.getElementById('memo-link-email'),
-  password: document.getElementById('memo-link-password'),
-  error: document.getElementById('memo-link-error'),
-  connect: document.getElementById('memo-link-connect'),
-  disconnect: document.getElementById('memo-link-disconnect'),
-};
-
-export async function renderMemoLink() {
-  ml.error.textContent = '';
-  let email = null;
-  try { email = await memoLink.currentUser(); } catch (e) { ml.error.textContent = memoLink.errorText(e); }
-  ml.status.textContent = email ? `つないでいます:${email}` : 'まだつないでいません';
-  ml.form.hidden = !!email;
-  ml.connect.hidden = !!email;
-  ml.disconnect.hidden = !email;
-  ml.password.value = '';
-}
-
-ml.connect.addEventListener('click', async () => {
-  const email = ml.email.value.trim();
-  if (!email || !ml.password.value) { ml.error.textContent = 'メールアドレスとパスワードを入れてください'; return; }
-  ml.connect.disabled = true;
-  ml.error.textContent = '';
-  ml.status.textContent = 'つないでいます…';
-  try {
-    await memoLink.connect(email, ml.password.value);
-    await renderMemoLink();
-  } catch (e) {
-    ml.status.textContent = 'まだつないでいません';
-    ml.error.textContent = memoLink.errorText(e);
-  } finally {
-    ml.connect.disabled = false;
-    ml.password.value = '';
-  }
-});
-
-ml.disconnect.addEventListener('click', async () => {
-  await memoLink.disconnect();
-  await renderMemoLink();
-});

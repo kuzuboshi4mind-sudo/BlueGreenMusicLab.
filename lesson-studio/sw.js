@@ -4,7 +4,7 @@
 // ・取れなかったとき(圏外・電波が弱くて8秒で返事がない)だけ、端末に残した版を使う
 // 残すのは、このアプリのファイルと、jsDelivr の部品(Supabase など)だけ。予定のやりとり(Supabase)は残さない。
 
-const CACHE = 'lesso-app-v1';
+const CACHE = 'lessonbook-studio-v1';
 const NETWORK_TIMEOUT_MS = 8000;
 
 // 最初に残しておくファイル(js を増やしたらここにも足す。足し忘れても、一度開けば自動で残る)
@@ -15,7 +15,7 @@ const CORE = [
   'js/backend-cached.js', 'js/backend-cloud.js', 'js/backend-local.js', 'js/backend-memory.js', 'js/device-copy.js',
   'js/calendar.js', 'js/day-memos.js', 'js/editor.js', 'js/export-xlsx.js', 'js/holidays.js', 'js/inline-edit.js',
   'js/line-share.js', 'js/memo-link.js', 'js/recurring.js', 'js/selection.js', 'js/settings.js', 'js/students.js',
-  'js/summary.js', 'js/trash-backup.js', 'js/zoom.js', 'js/missing-students.js',
+  'js/summary.js', 'js/trash-backup.js', 'js/zoom.js', 'js/missing-students.js', 'js/fees.js', 'js/plan-view.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm',
 ];
 

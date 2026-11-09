@@ -8,7 +8,8 @@ import { initZoom, refreshZoom, fitDayHeight } from './zoom.js';
 import { requireLogin, watchLogout, logout } from './login.js';
 import { initTrashBackup, showLastBackup, checkBackupReminder } from './trash-backup.js';
 import { initRecurring } from './recurring.js';
-import { initStudents } from './students.js';
+import { initStudents, openStudentByName } from './students.js';
+import { initFees, updateBadge as updateFeesBadge } from './fees.js';
 import { initLineShare } from './line-share.js';
 import { initSummary, updateSummary } from './summary.js';
 import { initInlineEdit, editLessonInline, editCellInline } from './inline-edit.js';
@@ -22,7 +23,7 @@ const monthStatus = document.getElementById('month-status');
 const legend = document.getElementById('type-legend');
 
 // アプリの版。更新するたびに変える(設定画面に出して、最新版が表示されているか確かめられるように)
-const APP_VERSION = '前月の生徒で未入力の人を表示(2026-11-09)';
+const APP_VERSION = '汎用版 1.0(2026-11-09)';
 document.getElementById('app-version').textContent = `アプリの版:${APP_VERSION}`;
 
 // 表示中の年と月(month は 1〜12)
@@ -72,7 +73,7 @@ async function show({ keepScroll = false } = {}) {
   if (dayView && !selectedDate.startsWith(`${year}-${pad(month)}`)) selectedDate = defaultDay();
   const [, , dd] = selectedDate.split('-').map(Number);
   title.textContent = dayView ? `${month}月${dd}日(${WEEKDAYS[new Date(year, month - 1, dd).getDay()]})` : `${year}年${month}月`;
-  document.title = `${month}月 レッスンスケジュール`;
+  document.title = `${month}月 レッスン帳`;
   history.replaceState(null, '', dayView ? `#${selectedDate}` : `#${year}-${pad(month)}`);
   document.body.classList.toggle('day-view', dayView);
   viewToggle.hidden = !phoneQuery.matches && !dayView;
@@ -107,6 +108,7 @@ async function show({ keepScroll = false } = {}) {
 // 「👤 生徒」ボタンの数字:仮の予定があって、まだ LINE で送っていない生徒の人数(表を描くのを待たせないよう後ろで数える)
 const studentsBadge = document.getElementById('students-badge');
 function updateStudentsBadge() {
+  updateFeesBadge();
   store.countStudentsToContact().then(n => {
     studentsBadge.hidden = !n;
     studentsBadge.textContent = n;
@@ -120,7 +122,7 @@ function showMonthStatus(tentative) {
   monthStatus.setAttribute('aria-pressed', String(tentative));
   monthStatus.setAttribute('aria-label', tentative ? 'この月は仮です(タップで確定にする)' : 'この月は確定です(タップで仮にする)');
   document.body.classList.toggle('month-tentative', tentative);
-  document.title = `${current.month}月${tentative ? '仮' : ''} レッスンスケジュール`;
+  document.title = `${current.month}月${tentative ? '仮' : ''} レッスン帳`;
 }
 
 monthStatus.addEventListener('click', async () => {
@@ -240,6 +242,7 @@ initLineShare({ onChanged: () => show({ keepScroll: true }) });
 initDayMemos();
 dayMemosBtn.addEventListener('click', () => openDayMemos(selectedDate, shownLessons));
 initStudents({ onChanged: () => show({ keepScroll: true }) });
+initFees({ getMonth: () => current, onChanged: () => show({ keepScroll: true }), openStudent: openStudentByName });
 initMissingStudents();
 
 // 保存やクラウドとの通信に失敗したら、内容を知らせる(気づかないまま消えないように)
