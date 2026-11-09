@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f5e57">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="レッスン帳">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="音楽講師のためのレッスンスケジュール・生徒・月謝管理アプリ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>レッスン帳</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f5f4;
+    --card: #ffffff;
+    --text: #1b2423;
+    --muted: #64716f;
+    --line: #dce3e1;
+    --soft: #eef3f2;
+    --head: #0f5e57;
+    --head-text: #ffffff;
+    --accent: #0f766e;
+    --accent-soft: #d7efec;
+    --danger: #b3261e;
+    --warn: #b26a00;
+    --ok: #1a7f45;
+    --input: #f7faf9;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1413;
+      --card: #172020;
+      --text: #e6eceb;
+      --muted: #96a4a1;
+      --line: #2a3634;
+      --soft: #1d2827;
+      --head: #0a3f3a;
+      --accent: #4fc3b5;
+      --accent-soft: #163a36;
+      --danger: #ff7b72;
+      --warn: #f0b04a;
+      --ok: #5fd18e;
+      --input: #1f2a29;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  header {
+    background: var(--head); color: var(--head-text);
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 17px; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header small { display: block; font-size: 11px; opacity: .75; font-weight: normal; }
+  .hbtn { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+  main { max-width: 760px; margin: 0 auto; padding: 12px 16px 24px; }
+  .card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .toolbar .title { flex: 1; font-weight: 700; text-align: center; font-size: 15px; }
+  .ibtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 16px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .seg button { border: 0; background: none; padding: 6px 12px; font-size: 13px; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .seg button.on { color: #0e1413; } }
+
+  /* week strip */
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+  .day { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 6px 0 4px; text-align: center; position: relative; }
+  .day .wd { font-size: 11px; color: var(--muted); }
+  .day .dn { font-size: 17px; font-weight: 700; }
+  .day .cnt { font-size: 10px; height: 14px; color: var(--accent); font-weight: 700; }
+  .day.today .dn { color: var(--accent); }
+  .day.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .day.sel .wd, .day.sel .cnt, .day.sel.today .dn { color: #fff; }
+  @media (prefers-color-scheme: dark) { .day.sel, .day.sel .wd, .day.sel .cnt, .day.sel.today .dn { color: #0e1413; } }
+  .sun { color: #c0392b !important; } .sat { color: #2a6fd6 !important; }
+  .day.sel .sun, .day.sel .sat { color: inherit !important; }
+
+  /* agenda */
+  .daysum { font-size: 13px; color: var(--muted); margin: 0 2px 8px; }
+  .lesson { display: flex; gap: 12px; padding: 12px 14px; border: 0; width: 100%; text-align: left; background: none; border-bottom: 1px solid var(--line); align-items: center; }
+  .lesson:last-child { border-bottom: 0; }
+  .lesson .time { width: 52px; flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lesson .time small { display: block; font-weight: normal; color: var(--muted); font-size: 12px; }
+  .lesson .bar { width: 4px; align-self: stretch; border-radius: 2px; flex: none; }
+  .lesson .body { flex: 1; min-width: 0; }
+  .lesson .name { font-weight: 700; }
+  .lesson .sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lesson.dim .name, .lesson.dim .time { opacity: .5; text-decoration: line-through; }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+  .s-done { background: #dcf3e4; color: #17693a; }
+  .s-mk { background: #fff0d6; color: #8a5200; }
+  .s-abs { background: #fde2e0; color: #9b231b; }
+  .s-can { background: var(--soft); color: var(--muted); }
+  .s-sch { background: var(--accent-soft); color: var(--accent); }
+  @media (prefers-color-scheme: dark) {
+    .s-done { background: #173a26; color: #7fe0a6; }
+    .s-mk { background: #3d2c0e; color: #f5c46a; }
+    .s-abs { background: #3f1a17; color: #ff9d95; }
+  }
+  .empty { text-align: center; color: var(--muted); padding: 32px 16px; font-size: 14px; }
+  .empty b { display: block; color: var(--text); margin-bottom: 4px; }
+
+  /* week grid */
+  .gridwrap { overflow: hidden; }
+  .ghead { display: grid; grid-template-columns: 34px repeat(7, 1fr); border-bottom: 1px solid var(--line); font-size: 11px; text-align: center; }
+  .ghead div { padding: 6px 0; }
+  .ghead .t { font-weight: 700; font-size: 13px; display: block; }
+  .ghead .today .t { color: var(--accent); }
+  .gbody { display: grid; grid-template-columns: 34px repeat(7, 1fr); position: relative; }
+  .hours div { font-size: 10px; color: var(--muted); text-align: right; padding-right: 4px; transform: translateY(-6px); }
+  .gcol { position: relative; border-left: 1px solid var(--line); }
+  .gcol.today { background: var(--accent-soft); }
+  .blk { position: absolute; border-radius: 5px; padding: 1px 3px; font-size: 10px; line-height: 1.25; overflow: hidden; color: #fff; border: 0; text-align: left; }
+  .blk b { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .blk.dim { opacity: .4; }
+  .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--danger); z-index: 2; pointer-events: none; }
+
+  /* lists */
+  .search { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; }
+  .row:last-child { border-bottom: 0; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .row .body { flex: 1; min-width: 0; }
+  .row .name { font-weight: 700; }
+  .row .sub { font-size: 12px; color: var(--muted); }
+  .badge { font-size: 11px; background: #fff0d6; color: #8a5200; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) { .badge { background: #3d2c0e; color: #f5c46a; } }
+  .link { background: none; border: 0; color: var(--accent); padding: 4px 0; font-size: 13px; }
+  .sectitle { font-size: 13px; color: var(--muted); font-weight: 700; margin: 18px 4px 8px; }
+
+  /* fees */
+  .sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .sum .card { padding: 10px 12px; }
+  .sum .k { font-size: 11px; color: var(--muted); }
+  .sum .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .fee { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .fee:last-child { border-bottom: 0; }
+  .fee .body { flex: 1; min-width: 0; }
+  .fee input { width: 92px; text-align: right; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--input); font-variant-numeric: tabular-nums; }
+  .paid { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 10px; font-size: 12px; white-space: nowrap; min-width: 80px; }
+  .paid.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  @media (prefers-color-scheme: dark) { .paid.on { color: #0e1413; } }
+
+  /* forms */
+  .form { display: grid; gap: 12px; }
+  .form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
+  .form input, .form select, .form textarea {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--input); font-size: 16px; font-weight: normal; color: var(--text);
+  }
+  .form textarea { min-height: 84px; resize: vertical; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .colors { display: flex; flex-wrap: wrap; gap: 8px; }
+  .colors button { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; }
+  .colors button.on { border-color: var(--text); }
+  .btn { border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 700; background: var(--accent); color: #fff; width: 100%; }
+  @media (prefers-color-scheme: dark) { .btn { color: #0e1413; } }
+  .btn.sub { background: var(--soft); color: var(--text); }
+  .btn.danger { background: none; color: var(--danger); border: 1px solid var(--line); }
+  .btns { display: grid; gap: 8px; margin-top: 4px; }
+  .btns.h { grid-template-columns: 1fr 1fr; }
+  .note { font-size: 12px; color: var(--muted); }
+  .warn { font-size: 13px; color: var(--warn); }
+  .st { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .st button { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 4px; font-size: 12px; }
+  .st button.on { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 700; }
+  .kv { display: grid; grid-template-columns: 72px 1fr; gap: 4px 10px; font-size: 14px; }
+  .kv dt { color: var(--muted); font-size: 12px; padding-top: 2px; }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .hist { font-size: 13px; border-top: 1px solid var(--line); padding: 8px 0; }
+  .hist .h { display: flex; gap: 8px; align-items: center; }
+  .hist p { margin: 2px 0 0; color: var(--muted); white-space: pre-wrap; }
+
+  /* sheet / dialog */
+  dialog { border: 0; padding: 0; background: var(--card); color: var(--text); width: 100%; max-width: 560px; border-radius: 16px; max-height: 92vh; }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  @media (max-width: 600px) {
+    dialog.sheet { margin: auto 0 0; max-width: none; border-radius: 16px 16px 0 0; max-height: 94vh; }
+  }
+  .shead { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); z-index: 1; }
+  .shead h2 { flex: 1; margin: 0; font-size: 16px; }
+  .sbody { padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .x { border: 0; background: var(--soft); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; }
+  #ask { max-width: 360px; width: calc(100% - 32px); }
+  #ask .sbody { padding: 20px 16px 16px; }
+  #ask p { margin: 0 0 16px; white-space: pre-wrap; }
+
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: var(--card); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabs button { border: 0; background: none; padding: 8px 0 6px; font-size: 11px; color: var(--muted); display: grid; justify-items: center; gap: 2px; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button.on { color: var(--accent); font-weight: 700; }
+  .fab {
+    position: fixed; right: 18px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 6;
+    width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: #fff;
+    font-size: 28px; line-height: 1; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  @media (prefers-color-scheme: dark) { .fab { color: #0e1413; } }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: #222; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50;
+    opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px);
+  }
+  .toast.show { opacity: .95; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="htitle">レッスン帳</h1>
+  <button class="hbtn" data-act="today">今日</button>
+</header>
+<main id="main"></main>
+<button class="fab" id="fab" data-act="fab" aria-label="追加">＋</button>
+<nav class="tabs" id="tabs">
+  <button data-tab="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>予定</button>
+  <button data-tab="students"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.5 3.5 5.2"/></svg>生徒</button>
+  <button data-tab="fees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.8"/><path d="M6 9.5v6M18 9.5v6"/></svg>月謝</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+</nav>
+
+<dialog id="sheet" class="sheet"></dialog>
+<dialog id="ask"><div class="sbody"><p id="askmsg"></p><div class="btns" id="askbtns"></div></div></dialog>
+<div class="toast" id="toast"></div>
+<input type="file" id="importfile" accept="application/json,.json" class="hidden">
+
+<script>
+'use strict';
+const APP_VERSION = '1.0.0';
+const KEY = 'lessonbook-v1';
+const UIKEY = 'lessonbook-ui';
+const COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#475569'];
+const STATUS = {
+  scheduled:     { label: '予定',       cls: 's-sch' },
+  done:          { label: '実施済',     cls: 's-done' },
+  absent_makeup: { label: '欠席(振替)', cls: 's-mk' },
+  absent:        { label: '欠席',       cls: 's-abs' },
+  canceled:      { label: '休講・中止', cls: 's-can' },
+};
+const DEFAULT_TPL = '{生徒}さん\n次回のレッスンは {日付} {時間}〜（{分}分・{場所}）です。\nよろしくお願いいたします。\n{教室} {講師}';
+
+// ---------- utils ----------
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yen = n => '¥' + Math.round(Number(n) || 0).toLocaleString('ja-JP');
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); };
+const todayKey = () => keyOf(new Date());
+const fmtDate = k => { const d = parseKey(k); return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; };
+const fmtDateLong = k => { const d = parseKey(k); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`; };
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const fromMin = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const endTime = l => fromMin(toMin(l.start) + l.duration);
+const monthOf = k => k.slice(0, 7);
+const addMonth = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+const fmtMonth = ym => { const [y, m] = ym.split('-').map(Number); return `${y}年${m}月`; };
+const wdClass = k => { const w = parseKey(k).getDay(); return w === 0 ? 'sun' : w === 6 ? 'sat' : ''; };
+
+// ---------- state ----------
+function defaults() {
+  return {
+    version: 1,
+    settings: {
+      studioName: '', teacherName: '', weekStart: 1, dayStart: 9, dayEnd: 21,
+      defaultDuration: 30, template: DEFAULT_TPL, places: ['教室', 'オンライン', '出張'],
+    },
+    students: [], lessons: [], payments: {},
+  };
+}
+function load() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY));
+    if (raw && typeof raw === 'object') return normalize(raw);
+  } catch (e) {}
+  return defaults();
+}
+function normalize(raw) {
+  const d = defaults();
+  return {
+    version: 1,
+    settings: { ...d.settings, ...(raw.settings || {}) },
+    students: Array.isArray(raw.students) ? raw.students : [],
+    lessons: Array.isArray(raw.lessons) ? raw.lessons : [],
+    payments: raw.payments && typeof raw.payments === 'object' ? raw.payments : {},
+  };
+}
+let S = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch (e) { toast('保存に失敗しました（容量不足の可能性）'); }
+}
+let ui = { tab: 'schedule', view: 'day', date: todayKey(), month: monthOf(todayKey()), q: '', showInactive: false };
+try { Object.assign(ui, JSON.parse(localStorage.getItem(UIKEY)) || {}); } catch (e) {}
+ui.date = todayKey(); ui.month = monthOf(ui.date);
+const saveUi = () => { try { localStorage.setItem(UIKEY, JSON.stringify({ tab: ui.tab, view: ui.view, showInactive: ui.showInactive })); } catch (e) {} };
+
+const student = id => S.students.find(s => s.id === id);
+const lesson = id => S.lessons.find(l => l.id === id);
+const studentName = id => student(id)?.name || '（削除された生徒）';
+const studentColor = id => student(id)?.color || '#888';
+const byTime = (a, b) => (a.date + a.start).localeCompare(b.date + b.start);
+const lessonsOn = k => S.lessons.filter(l => l.date === k).sort(byTime);
+const isActiveLesson = l => l.status !== 'canceled';
+
+// 振替が必要（欠席・振替あり）で、まだ振替レッスンが組まれていないもの
+function pendingMakeups(studentId) {
+  const used = new Set(S.lessons.filter(l => l.makeupOf && l.status !== 'canceled').map(l => l.makeupOf));
+  return S.lessons.filter(l => l.studentId === studentId && l.status === 'absent_makeup' && !used.has(l.id)).sort(byTime);
+}
+function makeupFor(lessonId) {
+  return S.lessons.find(l => l.makeupOf === lessonId && l.status !== 'canceled');
+}
+function conflicts(date, start, duration, ignoreId) {
+  const s = toMin(start), e = s + duration;
+  return S.lessons.filter(l => l.id !== ignoreId && l.date === date && isActiveLesson(l)
+    && toMin(l.start) < e && s < toMin(l.start) + l.duration);
+}
+function nextLesson(studentId) {
+  const now = todayKey();
+  return S.lessons.filter(l => l.studentId === studentId && l.date >= now && l.status === 'scheduled').sort(byTime)[0];
+}
+function weekStartKey(k) {
+  const d = parseKey(k);
+  d.setDate(d.getDate() - (d.getDay() - S.settings.weekStart + 7) % 7);
+  return keyOf(d);
+}
+
+// ---------- toast / ask ----------
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function choose(msg, options) {
+  return new Promise(resolve => {
+    const dlg = $('#ask');
+    $('#askmsg').textContent = msg;
+    const box = $('#askbtns'); box.innerHTML = '';
+    [...options, { label: 'やめる', value: null, cls: 'sub' }].forEach(o => {
+      const b = document.createElement('button');
+      b.className = 'btn ' + (o.cls || ''); b.textContent = o.label;
+      b.onclick = () => { dlg.close(); resolve(o.value); };
+      box.appendChild(b);
+    });
+    dlg.oncancel = () => resolve(null);
+    dlg.showModal();
+  });
+}
+const ask = (msg, okLabel = 'OK', danger = false) => choose(msg, [{ label: okLabel, value: true, cls: danger ? 'danger' : '' }]).then(v => !!v);
+
+// ---------- sheet ----------
+const sheet = $('#sheet');
+let sheetRefresh = null;
+function openSheet(title, html, refresh) {
+  sheet.innerHTML = `<div class="shead"><h2>${esc(title)}</h2><button class="x" data-act="close" aria-label="閉じる">✕</button></div><div class="sbody">${html}</div>`;
+  sheetRefresh = refresh || null;
+  if (!sheet.open) sheet.showModal();
+  sheet.scrollTop = 0;
+}
+function closeSheet() { if (sheet.open) sheet.close(); sheetRefresh = null; }
+sheet.addEventListener('close', () => { sheetRefresh = null; render(); });
+sheet.addEventListener('click', e => { if (e.target === sheet) closeSheet(); });
+
+// ---------- render ----------
+function render() {
+  const st = S.settings;
+  $('#htitle').innerHTML = esc(st.studioName || 'レッスン帳') + (st.teacherName ? `<small>${esc(st.teacherName)}</small>` : '');
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  $('#fab').classList.toggle('hidden', !(ui.tab === 'schedule' || ui.tab === 'students'));
+  const m = $('#main');
+  if (ui.tab === 'schedule') m.innerHTML = renderSchedule();
+  else if (ui.tab === 'students') m.innerHTML = renderStudents();
+  else if (ui.tab === 'fees') m.innerHTML = renderFees();
+  else m.innerHTML = renderSettings();
+  if (ui.tab === 'schedule' && ui.view === 'week') scrollGridToNow();
+}
+
+function renderSchedule() {
+  const ws = weekStartKey(ui.date);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+  const d0 = parseKey(days[0]), d6 = parseKey(days[6]);
+  const label = d0.getMonth() === d6.getMonth()
+    ? `${d0.getFullYear()}年${d0.getMonth() + 1}月`
+    : `${d0.getMonth() + 1}月〜${d6.getMonth() + 1}月`;
+  const today = todayKey();
+  let h = `<div class="toolbar">
+    <button class="ibtn" data-act="week" data-n="-1" aria-label="前の週">‹</button>
+    <div class="title">${label}</div>
+    <button class="ibtn" data-act="week" data-n="1" aria-label="次の週">›</button>
+    <div class="seg"><button data-act="view" data-v="day" class="${ui.view === 'day' ? 'on' : ''}">日</button><button data-act="view" data-v="week" class="${ui.view === 'week' ? 'on' : ''}">週</button></div>
+  </div>`;
+  if (ui.view === 'day') {
+    h += '<div class="strip">' + days.map(k => {
+      const n = lessonsOn(k).filter(isActiveLesson).length;
+      const d = parseKey(k);
+      return `<button class="day ${k === ui.date ? 'sel' : ''} ${k === today ? 'today' : ''}" data-act="pick" data-d="${k}">
+        <div class="wd ${wdClass(k)}">${WD[d.getDay()]}</div><div class="dn">${d.getDate()}</div><div class="cnt">${n ? n + '件' : ''}</div></button>`;
+    }).join('') + '</div>';
+    const list = lessonsOn(ui.date);
+    const act = list.filter(isActiveLesson);
+    const mins = act.reduce((a, l) => a + l.duration, 0);
+    h += `<div class="daysum">${fmtDateLong(ui.date)}${act.length ? `　${act.length}件・計${Math.floor(mins / 60) ? Math.floor(mins / 60) + '時間' : ''}${mins % 60 ? (mins % 60) + '分' : ''}` : ''}</div>`;
+    if (!list.length) {
+      h += `<div class="card empty"><b>レッスンの予定はありません</b>${S.students.length ? '右下の ＋ から追加できます' : 'まずは「生徒」タブで生徒を登録しましょう'}</div>`;
+    } else {
+      h += '<div class="card">' + list.map(lessonRow).join('') + '</div>';
+    }
+  } else {
+    h += renderWeekGrid(days);
+  }
+  return h;
+}
+
+function lessonRow(l) {
+  const s = student(l.studentId);
+  const st = STATUS[l.status] || STATUS.scheduled;
+  const subs = [s?.instrument, l.place, l.makeupOf ? '振替レッスン' : ''].filter(Boolean).join('・');
+  return `<button class="lesson ${l.status === 'canceled' ? 'dim' : ''}" data-act="lesson" data-id="${l.id}">
+    <div class="time">${l.start}<small>${l.duration}分</small></div>
+    <div class="bar" style="background:${esc(studentColor(l.studentId))}"></div>
+    <div class="body"><div class="name">${esc(studentName(l.studentId))}</div><div class="sub">${esc(subs) || '&nbsp;'}</div></div>
+    <span class="chip ${st.cls}">${st.label}</span></button>`;
+}
+
+const HOUR_PX = 52;
+function renderWeekGrid(days) {
+  const today = todayKey();
+  const weekLessons = S.lessons.filter(l => days.includes(l.date));
+  let startH = S.settings.dayStart, endH = S.settings.dayEnd;
+  weekLessons.forEach(l => {
+    startH = Math.min(startH, Math.floor(toMin(l.start) / 60));
+    endH = Math.max(endH, Math.ceil((toMin(l.start) + l.duration) / 60));
+  });
+  endH = Math.min(Math.max(endH, startH + 1), 24);
+  const height = (endH - startH) * HOUR_PX;
+  const lineBg = `background-image:repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px ${HOUR_PX}px)`;
+  let h = '<div class="card gridwrap"><div class="ghead"><div></div>' + days.map(k => {
+    const d = parseKey(k);
+    return `<div class="${k === today ? 'today' : ''}" data-act="pickday" data-d="${k}"><span class="${wdClass(k)}">${WD[d.getDay()]}</span><span class="t">${d.getDate()}</span></div>`;
+  }).join('') + '</div>';
+  h += `<div id="gscroll" style="max-height:calc(100vh - 230px);overflow-y:auto"><div class="gbody" style="height:${height}px">`;
+  h += '<div class="hours">' + Array.from({ length: endH - startH }, (_, i) => `<div style="height:${HOUR_PX}px">${i ? startH + i : ''}</div>`).join('') + '</div>';
+  const now = new Date();
+  days.forEach(k => {
+    const list = weekLessons.filter(l => l.date === k).sort(byTime);
+    // 重なりがある予定は横に並べる
+    const lanes = [];
+    const placed = list.map(l => {
+      const s = toMin(l.start), e = s + l.duration;
+      let lane = lanes.findIndex(end => end <= s);
+      if (lane < 0) { lane = lanes.length; lanes.push(e); } else lanes[lane] = e;
+      return { l, lane, s, e };
+    });
+    placed.forEach(p => {
+      p.n = 1 + Math.max(...placed.filter(q => q.s < p.e && p.s < q.e).map(q => q.lane));
+    });
+    h += `<div class="gcol ${k === today ? 'today' : ''}" style="${lineBg}" data-act="slot" data-d="${k}" data-sh="${startH}">`;
+    placed.forEach(({ l, lane, s, n }) => {
+      const top = (s - startH * 60) / 60 * HOUR_PX;
+      const ht = Math.max(18, l.duration / 60 * HOUR_PX - 2);
+      const w = 100 / n;
+      h += `<button class="blk ${l.status === 'canceled' || l.status.startsWith('absent') ? 'dim' : ''}" data-act="lesson" data-id="${l.id}"
+        style="top:${top}px;height:${ht}px;left:calc(${w * lane}% + 1px);width:calc(${w}% - 2px);background:${esc(studentColor(l.studentId))}">
+        <b>${esc(studentName(l.studentId))}</b>${l.start}</button>`;
+    });
+    if (k === today) {
+      const nm = now.getHours() * 60 + now.getMinutes();
+      if (nm >= startH * 60 && nm <= endH * 60) h += `<div class="nowline" style="top:${(nm - startH * 60) / 60 * HOUR_PX}px"></div>`;
+    }
+    h += '</div>';
+  });
+  h += '</div></div></div><p class="note" style="margin:8px 4px">空いている時間をタップすると、その日時でレッスンを追加できます。</p>';
+  return h;
+}
+function scrollGridToNow() {
+  const g = $('#gscroll'); if (!g) return;
+  const sh = Number(g.querySelector('.gcol')?.dataset.sh || 9);
+  const h = new Date().getHours();
+  g.scrollTop = Math.max(0, (Math.max(h - 1, sh) - sh) * HOUR_PX);
+}
+
+function renderStudents() {
+  const q = ui.q.trim().toLowerCase();
+  const all = S.students.slice().sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja'));
+  const match = s => !q || [s.name, s.kana, s.instrument].some(v => (v || '').toLowerCase().includes(q));
+  const active = all.filter(s => s.active !== false && match(s));
+  const inactive = all.filter(s => s.active === false && match(s));
+  let h = `<input class="search" id="q" type="search" placeholder="名前・楽器で検索" value="${esc(ui.q)}">`;
+  if (!S.students.length) {
+    return h + `<div class="card empty"><b>生徒が登録されていません</b>右下の ＋ から生徒を追加しましょう</div>`;
+  }
+  const row = s => {
+    const nx = nextLesson(s.id);
+    const mk = pendingMakeups(s.id).length;
+    return `<button class="row" data-act="student" data-id="${s.id}">
+      <span class="dot" style="background:${esc(s.color)}"></span>
+      <div class="body"><div class="name">${esc(s.name)}</div>
+      <div class="sub">${esc([s.instrument, nx ? `次回 ${fmtDate(nx.date)} ${nx.start}` : '次回未定'].filter(Boolean).join('・'))}</div></div>
+      ${mk ? `<span class="badge">振替待ち ${mk}</span>` : ''}</button>`;
+  };
+  h += `<div class="sectitle">在籍中（${active.length}名）</div>`;
+  h += active.length ? `<div class="card">${active.map(row).join('')}</div>` : '<div class="card empty">該当する生徒はいません</div>';
+  if (S.students.some(s => s.active === false)) {
+    h += `<div class="sectitle"><button class="link" data-act="toggleInactive">${ui.showInactive ? '▾' : '▸'} 休会・退会（${inactive.length}名）</button></div>`;
+    if (ui.showInactive && inactive.length) h += `<div class="card">${inactive.map(row).join('')}</div>`;
+  }
+  return h;
+}
+
+// ---------- fees ----------
+function feeRows(ym) {
+  const pay = S.payments[ym] || {};
+  const inMonth = S.lessons.filter(l => monthOf(l.date) === ym);
+  const ids = new Set(inMonth.map(l => l.studentId));
+  S.students.forEach(s => { if (s.active !== false && s.feeType === 'monthly') ids.add(s.id); });
+  return [...ids].filter(id => student(id)).map(id => {
+    const s = student(id);
+    const ls = inMonth.filter(l => l.studentId === id);
+    // 請求対象: 休講・振替ありの欠席・振替レッスン（元の回で請求済み）を除く
+    const billable = ls.filter(l => l.status !== 'canceled' && l.status !== 'absent_makeup' && !l.makeupOf).length;
+    const fee = Number(s.fee) || 0;
+    const calc = s.feeType === 'monthly' ? fee : fee * billable;
+    const p = pay[id] || {};
+    const amount = p.amount != null && p.amount !== '' ? Number(p.amount) : calc;
+    return { s, count: billable, total: ls.filter(isActiveLesson).length, calc, amount, overridden: p.amount != null && p.amount !== '', paid: !!p.paid, paidDate: p.paidDate || '' };
+  }).sort((a, b) => (a.s.kana || a.s.name).localeCompare(b.s.kana || b.s.name, 'ja'));
+}
+function renderFees() {
+  const rows = feeRows(ui.month);
+  const total = rows.reduce((a, r) => a + r.amount, 0);
+  const paid = rows.filter(r => r.paid).reduce((a, r) => a + r.amount, 0);
+  let h = `<div class="toolbar">
+    <button class="ibtn" data-act="month" data-n="-1" aria-label="前の月">‹</button>
+    <div class="title">${fmtMonth(ui.month)}</div>
+    <button class="ibtn" data-act="month" data-n="1" aria-label="次の月">›</button></div>
+  <div class="sum">
+    <div class="card"><div class="k">請求合計</div><div class="v">${yen(total)}</div></div>
+    <div class="card"><div class="k">入金済み</div><div class="v" style="color:var(--ok)">${yen(paid)}</div></div>
+    <div class="card"><div class="k">未入金</div><div class="v" style="color:${total - paid ? 'var(--danger)' : 'inherit'}">${yen(total - paid)}</div></div>
+  </div>`;
+  if (!rows.length) return h + '<div class="card empty"><b>この月の請求対象はありません</b>生徒の料金とレッスン予定を登録すると自動で集計されます</div>';
+  h += '<div class="card">' + rows.map(r => `<div class="fee">
+      <span class="dot" style="background:${esc(r.s.color)}"></span>
+      <div class="body"><div class="name" style="font-weight:700">${esc(r.s.name)}</div>
+      <div class="note">${r.s.feeType === 'monthly' ? `月謝・レッスン${r.total}回` : `${yen(r.s.fee)} × ${r.count}回`}${r.overridden ? '・手入力' : ''}${r.paid && r.paidDate ? `・${fmtDate(r.paidDate)}入金` : ''}</div></div>
+      <input type="number" inputmode="numeric" data-fee="${r.s.id}" value="${r.overridden ? r.amount : ''}" placeholder="${r.calc}" aria-label="請求額">
+      <button class="paid ${r.paid ? 'on' : ''}" data-act="paid" data-id="${r.s.id}">${r.paid ? '入金済 ✓' : '未入金'}</button>
+    </div>`).join('') + '</div>';
+  h += `<p class="note" style="margin:8px 4px">金額欄は空欄なら自動計算（1回ごと料金 × 請求対象回数、または月謝）。休講・振替ありの欠席・振替レッスンは回数に含みません。</p>
+  <div class="btns" style="margin-top:12px"><button class="btn sub" data-act="feecsv">この月をCSVで書き出す</button></div>`;
+  return h;
+}
+
+// ---------- settings ----------
+function renderSettings() {
+  const st = S.settings;
+  const hours = (sel, from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i).map(n => `<option value="${n}" ${n === sel ? 'selected' : ''}>${n}:00</option>`).join('');
+  return `<div class="card" style="padding:16px"><div class="form">
+    <label>教室名<input data-set="studioName" value="${esc(st.studioName)}" placeholder="例）ひまわり音楽教室"></label>
+    <label>講師名<input data-set="teacherName" value="${esc(st.teacherName)}" placeholder="例）山田 花子"></label>
+    <div class="two">
+      <label>週の始まり<select data-set="weekStart" data-num="1"><option value="1" ${st.weekStart === 1 ? 'selected' : ''}>月曜日</option><option value="0" ${st.weekStart === 0 ? 'selected' : ''}>日曜日</option></select></label>
+      <label>標準のレッスン時間<select data-set="defaultDuration" data-num="1">${[15, 20, 30, 40, 45, 50, 60, 75, 90, 120].map(n => `<option value="${n}" ${n === st.defaultDuration ? 'selected' : ''}>${n}分</option>`).join('')}</select></label>
+    </div>
+    <div class="two">
+      <label>週表示の開始<select data-set="dayStart" data-num="1">${hours(st.dayStart, 0, 22)}</select></label>
+      <label>週表示の終了<select data-set="dayEnd" data-num="1">${hours(st.dayEnd, 1, 24)}</select></label>
+    </div>
+    <label>レッスン場所の候補（カンマ区切り）<input data-set="places" value="${esc(st.places.join(', '))}"></label>
+    <label>連絡文テンプレート<textarea data-set="template" rows="5">${esc(st.template)}</textarea>
+      <span class="note" style="font-weight:normal">使える差し込み：{生徒} {日付} {時間} {分} {場所} {教室} {講師}</span></label>
+  </div></div>
+
+  <div class="sectitle">データ</div>
+  <div class="card" style="padding:16px"><div class="btns">
+    <button class="btn sub" data-act="ics">カレンダー用ファイル（.ics）を書き出す</button>
+    <button class="btn sub" data-act="export">バックアップを書き出す（JSON）</button>
+    <button class="btn sub" data-act="import">バックアップから復元</button>
+    <button class="btn sub" data-act="sample">サンプルデータを入れて試す</button>
+    <button class="btn danger" data-act="reset">すべてのデータを削除</button>
+  </div>
+  <p class="note">データはこの端末のブラウザ内にのみ保存され、外部に送信されません。機種変更やブラウザのデータ削除に備えて、定期的にバックアップを書き出してください。</p></div>
+  <p class="note" style="text-align:center;margin-top:16px">レッスン帳 v${APP_VERSION}・生徒${S.students.length}名・レッスン${S.lessons.length}件</p>`;
+}
+
+// ---------- lesson forms ----------
+function lessonForm(l, preset = {}) {
+  const isNew = !l;
+  const st = S.settings;
+  const v = l ? { ...l } : {
+    studentId: preset.studentId || '', date: preset.date || ui.date, start: preset.start || '16:00',
+    duration: st.defaultDuration, place: st.places[0] || '', memo: '', makeupOf: preset.makeupOf || '',
+  };
+  if (isNew && v.studentId && student(v.studentId)?.duration) v.duration = student(v.studentId).duration;
+  const opts = S.students.filter(s => s.active !== false || s.id === v.studentId)
+    .sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja'))
+    .map(s => `<option value="${s.id}" ${s.id === v.studentId ? 'selected' : ''}>${esc(s.name)}${s.instrument ? '（' + esc(s.instrument) + '）' : ''}</option>`).join('');
+  const durs = [...new Set([15, 20, 30, 40, 45, 50, 60, 75, 90, 120, Number(v.duration)])].sort((a, b) => a - b);
+  const html = `<form class="form" id="lf">
+    <label>生徒<select name="studentId" required><option value="">選択してください</option>${opts}</select></label>
+    <div class="two">
+      <label>日付<input type="date" name="date" value="${v.date}" required></label>
+      <label>開始時刻<input type="time" name="start" value="${v.start}" step="300" required></label>
+    </div>
+    <div class="two">
+      <label>レッスン時間<select name="duration">${durs.map(n => `<option value="${n}" ${n === Number(v.duration) ? 'selected' : ''}>${n}分</option>`).join('')}</select></label>
+      <label>場所<input name="place" list="places" value="${esc(v.place)}"><datalist id="places">${st.places.map(p => `<option value="${esc(p)}">`).join('')}</datalist></label>
+    </div>
+    ${isNew ? `<div class="two">
+      <label>繰り返し<select name="repeat"><option value="0">なし（1回のみ）</option><option value="1">毎週</option><option value="2">隔週</option></select></label>
+      <label>回数<select name="count">${[4, 8, 12, 16, 24, 36, 48].map(n => `<option value="${n}" ${n === 12 ? 'selected' : ''}>${n}回</option>`).join('')}</select></label>
+    </div>` : ''}
+    <label id="mkwrap">振替元の欠席<select name="makeupOf"></select></label>
+    <label>連絡メモ（任意）<input name="memo" value="${esc(v.memo || '')}" placeholder="例）発表会の曲を持参"></label>
+    <div id="lfwarn" class="warn"></div>
+    <div class="btns"><button class="btn" type="submit">${isNew ? '追加する' : '保存する'}</button></div>
+  </form>`;
+  openSheet(isNew ? 'レッスンを追加' : 'レッスンを編集', html);
+  const f = $('#lf');
+  const refreshMakeup = () => {
+    const sid = f.studentId.value;
+    const pend = pendingMakeups(sid);
+    const cur = v.makeupOf && lesson(v.makeupOf);
+    const list = cur && !pend.includes(cur) ? [cur, ...pend] : pend;
+    f.makeupOf.innerHTML = '<option value="">なし（通常レッスン）</option>' + list.map(p => `<option value="${p.id}" ${p.id === v.makeupOf ? 'selected' : ''}>${fmtDate(p.date)} ${p.start} の欠席分</option>`).join('');
+    $('#mkwrap').classList.toggle('hidden', !list.length);
+    if (f.repeat) f.repeat.disabled = !!f.makeupOf.value;
+  };
+  const checkWarn = () => {
+    if (!f.date.value || !f.start.value) return;
+    const c = conflicts(f.date.value, f.start.value, Number(f.duration.value), l?.id);
+    $('#lfwarn').textContent = c.length ? `⚠ ${c.map(x => `${x.start}〜${endTime(x)} ${studentName(x.studentId)}`).join('、')} と時間が重なっています` : '';
+  };
+  refreshMakeup(); checkWarn();
+  f.studentId.onchange = () => {
+    const s = student(f.studentId.value);
+    if (isNew && s?.duration) {
+      if (![...f.duration.options].some(o => Number(o.value) === s.duration)) f.duration.add(new Option(s.duration + '分', s.duration));
+      f.duration.value = s.duration;
+    }
+    if (isNew && s?.place) f.place.value = s.place;
+    v.makeupOf = ''; refreshMakeup(); checkWarn();
+  };
+  f.makeupOf.onchange = refreshMakeup;
+  f.date.onchange = f.start.onchange = f.duration.onchange = checkWarn;
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const data = {
+      studentId: f.studentId.value, date: f.date.value, start: f.start.value,
+      duration: Number(f.duration.value), place: f.place.value.trim(), memo: f.memo.value.trim(),
+      makeupOf: f.makeupOf.value || null,
+    };
+    if (!data.studentId) return toast('生徒を選択してください');
+    if (!data.date || !data.start) return toast('日付と時刻を入力してください');
+    const repeat = isNew && !data.makeupOf ? Number(f.repeat.value) : 0;
+    const count = repeat ? Number(f.count.value) : 1;
+    const dates = Array.from({ length: count }, (_, i) => addDays(data.date, i * 7 * (repeat || 1)));
+    const clash = dates.filter(d => conflicts(d, data.start, data.duration, l?.id).length);
+    if (clash.length && !await ask(`${clash.length}件の日程で、他のレッスンと時間が重なっています。\n（${clash.slice(0, 3).map(fmtDate).join('、')}${clash.length > 3 ? ' ほか' : ''}）\nこのまま保存しますか？`, '保存する')) return;
+    if (isNew) {
+      const seriesId = count > 1 ? uid() : null;
+      dates.forEach(d => S.lessons.push({ id: uid(), ...data, date: d, status: 'scheduled', note: '', seriesId, createdAt: Date.now() }));
+      toast(count > 1 ? `${count}回分のレッスンを追加しました` : 'レッスンを追加しました');
+    } else {
+      Object.assign(lesson(l.id), data);
+      toast('保存しました');
+    }
+    save();
+    ui.date = data.date;
+    if (ui.tab !== 'schedule') ui.tab = 'schedule';
+    closeSheet();
+  };
+}
+
+function lessonDetail(id) {
+  const l = lesson(id); if (!l) return closeSheet();
+  const s = student(l.studentId);
+  const mk = l.status === 'absent_makeup' ? makeupFor(l.id) : null;
+  const orig = l.makeupOf ? lesson(l.makeupOf) : null;
+  const html = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+      <span class="dot" style="background:${esc(studentColor(l.studentId))};width:16px;height:16px"></span>
+      <div style="flex:1"><div style="font-weight:700;font-size:17px">${esc(studentName(l.studentId))}</div>
+      <div class="note">${esc(s?.instrument || '')}</div></div>
+      ${s ? `<button class="link" data-act="student" data-id="${s.id}">生徒情報 ›</button>` : ''}
+    </div>
+    <dl class="kv">
+      <dt>日時</dt><dd>${fmtDateLong(l.date)}<br>${l.start}〜${endTime(l)}（${l.duration}分）</dd>
+      ${l.place ? `<dt>場所</dt><dd>${esc(l.place)}</dd>` : ''}
+      ${l.memo ? `<dt>連絡メモ</dt><dd>${esc(l.memo)}</dd>` : ''}
+      ${orig ? `<dt>振替</dt><dd>${fmtDate(orig.date)} ${orig.start} の欠席分の振替</dd>` : ''}
+      ${l.status === 'absent_makeup' ? `<dt>振替</dt><dd>${mk ? `${fmtDate(mk.date)} ${mk.start} に振替済み` : '<span class="warn">振替日が未定です</span>'}</dd>` : ''}
+    </dl>
+    <div class="sectitle" style="margin-top:16px">状態</div>
+    <div class="st">${Object.entries(STATUS).map(([k, o]) => `<button data-act="status" data-id="${l.id}" data-st="${k}" class="${l.status === k ? 'on' : ''}"><span class="chip ${o.cls}">${o.label}</span></button>`).join('')}</div>
+    <p class="note">欠席(振替)…後日振替レッスンを行う欠席。欠席…振替なしの欠席（1回ごと料金なら請求対象）。休講・中止…講師都合などで行わない回（請求対象外）。</p>
+    ${l.status === 'absent_makeup' && !mk ? `<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="addmakeup" data-id="${l.id}">振替レッスンの日時を決める</button></div>` : ''}
+    <form class="form" style="margin-top:8px"><label>レッスン記録（内容・宿題など）<textarea id="lnote" placeholder="例）ブルグミュラー 18番 前半OK。次回までに後半を片手ずつ。">${esc(l.note || '')}</textarea></label></form>
+    <div class="btns h" style="margin-top:12px">
+      <button class="btn sub" data-act="copymsg" data-id="${l.id}">連絡文をコピー</button>
+      <button class="btn sub" data-act="editlesson" data-id="${l.id}">日時・内容を編集</button>
+    </div>
+    <div class="btns" style="margin-top:8px"><button class="btn danger" data-act="dellesson" data-id="${l.id}">このレッスンを削除</button></div>`;
+  openSheet('レッスン詳細', html, () => lessonDetail(id));
+  const ta = $('#lnote');
+  ta.oninput = () => { l.note = ta.value; save(); };
+}
+
+function lessonMessage(l) {
+  const st = S.settings;
+  const rep = { '生徒': studentName(l.studentId), '日付': fmtDateLong(l.date), '時間': l.start, '分': l.duration, '場所': l.place || '', '教室': st.studioName || '', '講師': st.teacherName || '' };
+  let msg = (st.template || DEFAULT_TPL).replace(/\{(生徒|日付|時間|分|場所|教室|講師)\}/g, (_, k) => rep[k]);
+  if (l.memo) msg += `\n※${l.memo}`;
+  return msg.replace(/（(\d+)分・）/, '（$1分）').trim();
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    (sheet.open ? sheet : document.body).appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); return ok;
+  }
+}
+
+// ---------- student forms ----------
+function studentSheet(id) {
+  const s = id ? student(id) : null;
+  const isNew = !s;
+  const v = s ? { ...s } : { name: '', kana: '', instrument: '', color: COLORS[S.students.length % COLORS.length], duration: S.settings.defaultDuration, feeType: 'monthly', fee: '', place: '', guardian: '', contact: '', memo: '', active: true };
+  let hist = '';
+  if (s) {
+    const ls = S.lessons.filter(l => l.studentId === s.id).sort(byTime);
+    const past = ls.filter(l => l.date <= todayKey()).reverse().slice(0, 30);
+    const upcoming = ls.filter(l => l.date > todayKey() && l.status === 'scheduled').slice(0, 5);
+    const pend = pendingMakeups(s.id);
+    hist = `<div class="btns h" style="margin-bottom:8px">
+        <button class="btn" data-act="newlessonfor" data-id="${s.id}">レッスンを追加</button>
+        <button class="btn sub" data-act="editstudent" data-id="${s.id}">生徒情報を編集</button></div>
+      <dl class="kv" style="margin-top:12px">
+        ${s.instrument ? `<dt>楽器・コース</dt><dd>${esc(s.instrument)}</dd>` : ''}
+        <dt>料金</dt><dd>${s.fee ? (s.feeType === 'monthly' ? '月謝 ' : '1回 ') + yen(s.fee) : '未設定'}・標準${s.duration}分</dd>
+        ${s.guardian ? `<dt>保護者</dt><dd>${esc(s.guardian)}</dd>` : ''}
+        ${s.contact ? `<dt>連絡先</dt><dd>${esc(s.contact)}</dd>` : ''}
+        ${s.memo ? `<dt>メモ</dt><dd style="white-space:pre-wrap">${esc(s.memo)}</dd>` : ''}
+        ${s.active === false ? '<dt>状態</dt><dd>休会・退会</dd>' : ''}
+      </dl>
+      ${pend.length ? `<div class="sectitle">振替待ち（${pend.length}件）</div>` + pend.map(p => `<div class="hist"><div class="h"><span style="flex:1">${fmtDate(p.date)} ${p.start} の欠席</span><button class="link" data-act="addmakeup" data-id="${p.id}">振替日を決める ›</button></div></div>`).join('') : ''}
+      <div class="sectitle">今後の予定</div>
+      ${upcoming.length ? upcoming.map(l => `<div class="hist"><div class="h"><button class="link" data-act="lesson" data-id="${l.id}">${fmtDate(l.date)} ${l.start}〜</button><span class="note">${l.duration}分${l.place ? '・' + esc(l.place) : ''}</span></div></div>`).join('') : '<div class="note">予定はありません</div>'}
+      <div class="sectitle">レッスン記録</div>
+      ${past.length ? past.map(l => `<div class="hist"><div class="h"><button class="link" data-act="lesson" data-id="${l.id}">${fmtDate(l.date)} ${l.start}</button><span class="chip ${STATUS[l.status]?.cls}">${STATUS[l.status]?.label}</span></div>${l.note ? `<p>${esc(l.note)}</p>` : ''}</div>`).join('') : '<div class="note">まだ記録はありません</div>'}`;
+    openSheet(s.name, hist, () => studentSheet(id));
+    return;
+  }
+  studentForm(v, isNew);
+}
+function studentForm(v, isNew) {
+  const html = `<form class="form" id="sf">
+    <div class="two">
+      <label>名前<input name="name" value="${esc(v.name)}" required placeholder="山田 太郎"></label>
+      <label>ふりがな<input name="kana" value="${esc(v.kana)}" placeholder="やまだ たろう"></label>
+    </div>
+    <label>楽器・コース<input name="instrument" value="${esc(v.instrument)}" placeholder="例）ピアノ 初級／ヴァイオリン"></label>
+    <label>表示色<div class="colors">${COLORS.map(c => `<button type="button" data-color="${c}" class="${c === v.color ? 'on' : ''}" style="background:${c}" aria-label="色"></button>`).join('')}</div></label>
+    <div class="two">
+      <label>料金の区分<select name="feeType"><option value="monthly" ${v.feeType === 'monthly' ? 'selected' : ''}>月謝（月額）</option><option value="per" ${v.feeType === 'per' ? 'selected' : ''}>1回ごと</option></select></label>
+      <label>金額（円）<input name="fee" type="number" inputmode="numeric" min="0" value="${esc(v.fee)}" placeholder="8000"></label>
+    </div>
+    <div class="two">
+      <label>標準レッスン時間<select name="duration">${[15, 20, 30, 40, 45, 50, 60, 75, 90, 120].map(n => `<option value="${n}" ${n === Number(v.duration) ? 'selected' : ''}>${n}分</option>`).join('')}</select></label>
+      <label>主な場所<input name="place" list="places2" value="${esc(v.place || '')}"><datalist id="places2">${S.settings.places.map(p => `<option value="${esc(p)}">`).join('')}</datalist></label>
+    </div>
+    <label>保護者名（任意）<input name="guardian" value="${esc(v.guardian)}"></label>
+    <label>連絡先（電話・メール・LINEなど）<input name="contact" value="${esc(v.contact)}"></label>
+    <label>メモ<textarea name="memo" placeholder="目標、使用教材、配慮事項など">${esc(v.memo)}</textarea></label>
+    <label>状態<select name="active"><option value="1" ${v.active !== false ? 'selected' : ''}>在籍中</option><option value="0" ${v.active === false ? 'selected' : ''}>休会・退会</option></select></label>
+    <div class="btns"><button class="btn" type="submit">${isNew ? '登録する' : '保存する'}</button>
+    ${isNew ? '' : `<button class="btn danger" type="button" data-act="delstudent" data-id="${v.id}">この生徒を削除</button>`}</div>
+  </form>`;
+  openSheet(isNew ? '生徒を追加' : '生徒情報を編集', html);
+  const f = $('#sf');
+  let color = v.color;
+  f.querySelectorAll('[data-color]').forEach(b => b.onclick = () => {
+    color = b.dataset.color; f.querySelectorAll('[data-color]').forEach(x => x.classList.toggle('on', x === b));
+  });
+  f.onsubmit = e => {
+    e.preventDefault();
+    const data = {
+      name: f.name.value.trim(), kana: f.kana.value.trim(), instrument: f.instrument.value.trim(), color,
+      feeType: f.feeType.value, fee: f.fee.value === '' ? '' : Number(f.fee.value), duration: Number(f.duration.value),
+      place: f.place.value.trim(), guardian: f.guardian.value.trim(), contact: f.contact.value.trim(), memo: f.memo.value.trim(),
+      active: f.active.value === '1',
+    };
+    if (!data.name) return toast('名前を入力してください');
+    if (isNew) { const id = uid(); S.students.push({ id, ...data, createdAt: Date.now() }); save(); toast('生徒を登録しました'); studentSheet(id); }
+    else { Object.assign(student(v.id), data); save(); toast('保存しました'); studentSheet(v.id); }
+  };
+}
+
+// ---------- files ----------
+function download(name, text, type) {
+  const blob = new Blob([text], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const csvCell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+function exportFeesCsv() {
+  const rows = feeRows(ui.month);
+  const lines = [['生徒', '楽器・コース', '料金区分', '単価', '請求対象回数', '請求額', '入金', '入金日']];
+  rows.forEach(r => lines.push([r.s.name, r.s.instrument || '', r.s.feeType === 'monthly' ? '月謝' : '1回ごと', r.s.fee || 0, r.count, r.amount, r.paid ? '済' : '未', r.paidDate]));
+  download(`月謝_${ui.month}.csv`, '﻿' + lines.map(l => l.map(csvCell).join(',')).join('\r\n'), 'text/csv');
+}
+function exportIcs() {
+  const icsEsc = s => String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const dt = (k, t) => k.replace(/-/g, '') + 'T' + t.replace(':', '') + '00';
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const from = addDays(todayKey(), -60);
+  const ev = S.lessons.filter(l => l.date >= from && isActiveLesson(l) && !l.status.startsWith('absent')).map(l => [
+    'BEGIN:VEVENT', `UID:${l.id}@lessonbook`, `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=Asia/Tokyo:${dt(l.date, l.start)}`, `DTEND;TZID=Asia/Tokyo:${dt(l.date, endTime(l))}`,
+    `SUMMARY:${icsEsc('レッスン：' + studentName(l.studentId))}`,
+    l.place ? `LOCATION:${icsEsc(l.place)}` : '', l.memo ? `DESCRIPTION:${icsEsc(l.memo)}` : '', 'END:VEVENT',
+  ].filter(Boolean).join('\r\n'));
+  if (!ev.length) return toast('書き出す予定がありません');
+  const tz = 'BEGIN:VTIMEZONE\r\nTZID:Asia/Tokyo\r\nBEGIN:STANDARD\r\nDTSTART:19700101T000000\r\nTZOFFSETFROM:+0900\r\nTZOFFSETTO:+0900\r\nTZNAME:JST\r\nEND:STANDARD\r\nEND:VTIMEZONE';
+  download('lessons.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LessonBook//JA', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${icsEsc(S.settings.studioName || 'レッスン')}`, tz, ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
+  toast(`${ev.length}件の予定を書き出しました`);
+}
+$('#importfile').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try {
+    const raw = JSON.parse(await file.text());
+    if (!raw || !Array.isArray(raw.students) || !Array.isArray(raw.lessons)) throw new Error('format');
+    if (!await ask(`バックアップ（生徒${raw.students.length}名・レッスン${raw.lessons.length}件）で現在のデータを置き換えます。よろしいですか？`, '復元する', true)) return;
+    S = normalize(raw); save(); render(); toast('復元しました');
+  } catch (err) { toast('ファイルを読み込めませんでした'); }
+};
+function loadSample() {
+  const names = [['佐藤 ひなた', 'さとう ひなた', 'ピアノ 初級', 'monthly', 8000, 30], ['鈴木 蒼', 'すずき あおい', 'ピアノ 中級', 'monthly', 10000, 45], ['高橋 美咲', 'たかはし みさき', 'ヴァイオリン', 'per', 4500, 45], ['田中 健', 'たなか けん', 'ギター（大人）', 'per', 5000, 60], ['伊藤 ゆい', 'いとう ゆい', 'リトミック', 'monthly', 6000, 30]];
+  const slots = [[1, '16:00'], [2, '17:00'], [3, '18:00'], [4, '19:30'], [6, '10:00']];
+  const ws = weekStartKey(addDays(todayKey(), -14));
+  names.forEach(([name, kana, instrument, feeType, fee, duration], i) => {
+    const id = uid();
+    S.students.push({ id, name, kana, instrument, color: COLORS[i], feeType, fee, duration, place: i === 3 ? 'オンライン' : '教室', guardian: '', contact: '', memo: '', active: true, createdAt: Date.now() });
+    const first = addDays(ws, (slots[i][0] - S.settings.weekStart + 7) % 7);
+    const seriesId = uid();
+    for (let w = 0; w < 10; w++) {
+      const d = addDays(first, w * 7);
+      S.lessons.push({ id: uid(), studentId: id, date: d, start: slots[i][1], duration, place: i === 3 ? 'オンライン' : '教室', memo: '', makeupOf: null, seriesId, status: d < todayKey() ? 'done' : 'scheduled', note: d < todayKey() ? '基礎練習とスケール。次回までに課題曲を通して練習。' : '', createdAt: Date.now() });
+    }
+  });
+  save();
+}
+
+// ---------- events ----------
+document.addEventListener('click', async e => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { ui.tab = tab.dataset.tab; saveUi(); render(); window.scrollTo(0, 0); return; }
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const id = el.dataset.id;
+  switch (el.dataset.act) {
+    case 'close': closeSheet(); break;
+    case 'today': ui.date = todayKey(); ui.month = monthOf(ui.date); if (ui.tab !== 'fees') ui.tab = 'schedule'; render(); break;
+    case 'week': ui.date = addDays(ui.date, 7 * Number(el.dataset.n)); render(); break;
+    case 'view': ui.view = el.dataset.v; saveUi(); render(); break;
+    case 'pick': ui.date = el.dataset.d; render(); break;
+    case 'pickday': ui.date = el.dataset.d; ui.view = 'day'; saveUi(); render(); break;
+    case 'month': ui.month = addMonth(ui.month, Number(el.dataset.n)); render(); break;
+    case 'slot': {
+      if (!S.students.length) { toast('先に生徒を登録してください'); break; }
+      const y = e.clientY - el.getBoundingClientRect().top;
+      const m = Math.floor((Number(el.dataset.sh) * 60 + y / HOUR_PX * 60) / 30) * 30;
+      lessonForm(null, { date: el.dataset.d, start: fromMin(Math.min(m, 23 * 60 + 30)) });
+      break;
+    }
+    case 'fab':
+      if (ui.tab === 'students') studentForm({ name: '', kana: '', instrument: '', color: COLORS[S.students.length % COLORS.length], duration: S.settings.defaultDuration, feeType: 'monthly', fee: '', place: '', guardian: '', contact: '', memo: '', active: true }, true);
+      else if (!S.students.length) { toast('先に生徒を登録してください'); ui.tab = 'students'; saveUi(); render(); }
+      else lessonForm(null, {});
+      break;
+    case 'lesson': lessonDetail(id); break;
+    case 'editlesson': lessonForm(lesson(id)); break;
+    case 'newlessonfor': lessonForm(null, { studentId: id }); break;
+    case 'addmakeup': { const l = lesson(id); lessonForm(null, { studentId: l.studentId, makeupOf: l.id }); break; }
+    case 'status': {
+      const l = lesson(id); const next = el.dataset.st;
+      if (l.status === 'absent_makeup' && next !== 'absent_makeup' && makeupFor(l.id)) {
+        if (!await ask('この欠席にはすでに振替レッスンが組まれています。状態を変更すると、振替レッスンは通常のレッスン扱いになります。', '変更する')) break;
+        makeupFor(l.id).makeupOf = null;
+      }
+      l.status = next; save(); lessonDetail(id);
+      if (next === 'absent_makeup' && !makeupFor(l.id)) toast('振替待ちに追加しました');
+      break;
+    }
+    case 'copymsg': toast(await copyText(lessonMessage(lesson(id))) ? '連絡文をコピーしました' : 'コピーできませんでした'); break;
+    case 'dellesson': {
+      const l = lesson(id);
+      const following = l.seriesId ? S.lessons.filter(x => x.seriesId === l.seriesId && x.date >= l.date) : [];
+      let mode;
+      if (following.length > 1) mode = await choose('このレッスンは繰り返し予定の一部です。', [{ label: 'この回のみ削除', value: 'one', cls: 'danger' }, { label: `この回以降すべて削除（${following.length}件）`, value: 'after', cls: 'danger' }]);
+      else mode = await ask(`${fmtDate(l.date)} ${l.start} ${studentName(l.studentId)} のレッスンを削除しますか？`, '削除する', true) ? 'one' : null;
+      if (!mode) break;
+      const del = new Set(mode === 'one' ? [l.id] : following.map(x => x.id));
+      S.lessons.forEach(x => { if (del.has(x.makeupOf)) x.makeupOf = null; });
+      S.lessons = S.lessons.filter(x => !del.has(x.id));
+      save(); closeSheet(); toast(`${del.size}件削除しました`);
+      break;
+    }
+    case 'student': studentSheet(id); break;
+    case 'editstudent': studentForm({ ...student(id) }, false); break;
+    case 'delstudent': {
+      const n = S.lessons.filter(l => l.studentId === id).length;
+      if (!await ask(`${studentName(id)} さんを削除します。${n ? `\n関連するレッスン${n}件も削除されます。` : ''}\n※通わなくなった場合は「休会・退会」にすると記録を残せます。`, '削除する', true)) break;
+      S.students = S.students.filter(s => s.id !== id);
+      S.lessons = S.lessons.filter(l => l.studentId !== id);
+      Object.values(S.payments).forEach(m => delete m[id]);
+      save(); closeSheet(); toast('削除しました');
+      break;
+    }
+    case 'toggleInactive': ui.showInactive = !ui.showInactive; saveUi(); render(); break;
+    case 'paid': {
+      const m = S.payments[ui.month] ||= {};
+      const p = m[id] ||= {};
+      p.paid = !p.paid; p.paidDate = p.paid ? todayKey() : '';
+      save(); render(); break;
+    }
+    case 'feecsv': exportFeesCsv(); break;
+    case 'ics': exportIcs(); break;
+    case 'export': download(`lessonbook-backup-${todayKey()}.json`, JSON.stringify(S, null, 2), 'application/json'); toast('バックアップを書き出しました'); break;
+    case 'import': $('#importfile').click(); break;
+    case 'sample':
+      if (S.students.length && !await ask('現在のデータにサンプルの生徒5名と予定を追加します。', '追加する')) break;
+      loadSample(); ui.tab = 'schedule'; ui.date = todayKey(); saveUi(); render(); toast('サンプルデータを追加しました');
+      break;
+    case 'reset':
+      if (!await ask('すべての生徒・レッスン・月謝の記録を削除します。この操作は取り消せません。', '削除する', true)) break;
+      if (!await ask('本当に削除しますか？（バックアップがない場合は復元できません）', 'すべて削除', true)) break;
+      S = defaults(); save(); render(); toast('すべてのデータを削除しました');
+      break;
+  }
+});
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'q') {
+    ui.q = t.value; const pos = t.selectionStart; render();
+    const q = $('#q'); q.focus(); q.setSelectionRange(pos, pos);
+  } else if (t.dataset.fee) {
+    const m = S.payments[ui.month] ||= {};
+    const p = m[t.dataset.fee] ||= {};
+    p.amount = t.value === '' ? null : Number(t.value);
+    save();
+  } else if (t.dataset.set && t.tagName === 'TEXTAREA') {
+    S.settings[t.dataset.set] = t.value; save();
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.fee) render();
+  else if (t.dataset.set) {
+    const k = t.dataset.set;
+    if (k === 'places') S.settings.places = t.value.split(/[,、，]/).map(s => s.trim()).filter(Boolean);
+    else S.settings[k] = t.dataset.num ? Number(t.value) : t.value;
+    if (S.settings.dayEnd <= S.settings.dayStart) S.settings.dayEnd = Math.min(24, S.settings.dayStart + 1);
+    save(); render(); toast('設定を保存しました');
+  }
+});
+
+render();
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
