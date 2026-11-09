@@ -824,21 +824,32 @@ function studentForm(v, isNew) {
 }
 
 // ---------- files ----------
-function download(name, text, type) {
+// claude.ai のアーティファクト上で開いたときは、その保存機能を使う
+let dlApi = null;
+try { window.claude?.use?.('downloads').then(d => { dlApi = d; }).catch(() => {}); } catch (e) {}
+async function download(name, text, type) {
+  if (dlApi) {
+    try { await dlApi.save({ filename: name, data: new Blob([text], { type }) }); return true; }
+    catch (e) {
+      if (e?.code !== 'declined') toast(e?.code === 'rejected_extension' ? 'この画面ではこの形式は保存できません' : '保存できませんでした');
+      return false;
+    }
+  }
   const blob = new Blob([text], { type });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  return true;
 }
 const csvCell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
-function exportFeesCsv() {
+async function exportFeesCsv() {
   const rows = feeRows(ui.month);
   const lines = [['生徒', '楽器・コース', '料金区分', '単価', '請求対象回数', '請求額', '入金', '入金日']];
   rows.forEach(r => lines.push([r.s.name, r.s.instrument || '', r.s.feeType === 'monthly' ? '月謝' : '1回ごと', r.s.fee || 0, r.count, r.amount, r.paid ? '済' : '未', r.paidDate]));
-  download(`月謝_${ui.month}.csv`, '﻿' + lines.map(l => l.map(csvCell).join(',')).join('\r\n'), 'text/csv');
+  if (await download(`月謝_${ui.month}.csv`, '﻿' + lines.map(l => l.map(csvCell).join(',')).join('\r\n'), 'text/csv')) toast('CSVを書き出しました');
 }
-function exportIcs() {
+async function exportIcs() {
   const icsEsc = s => String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
   const dt = (k, t) => k.replace(/-/g, '') + 'T' + t.replace(':', '') + '00';
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
@@ -851,7 +862,7 @@ function exportIcs() {
   ].filter(Boolean).join('\r\n'));
   if (!ev.length) return toast('書き出す予定がありません');
   const tz = 'BEGIN:VTIMEZONE\r\nTZID:Asia/Tokyo\r\nBEGIN:STANDARD\r\nDTSTART:19700101T000000\r\nTZOFFSETFROM:+0900\r\nTZOFFSETTO:+0900\r\nTZNAME:JST\r\nEND:STANDARD\r\nEND:VTIMEZONE';
-  download('lessons.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LessonBook//JA', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${icsEsc(S.settings.studioName || 'レッスン')}`, tz, ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar');
+  if (!await download('lessons.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LessonBook//JA', 'CALSCALE:GREGORIAN', `X-WR-CALNAME:${icsEsc(S.settings.studioName || 'レッスン')}`, tz, ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar')) return;
   toast(`${ev.length}件の予定を書き出しました`);
 }
 $('#importfile').onchange = async e => {
@@ -955,7 +966,7 @@ document.addEventListener('click', async e => {
     }
     case 'feecsv': exportFeesCsv(); break;
     case 'ics': exportIcs(); break;
-    case 'export': download(`lessonbook-backup-${todayKey()}.json`, JSON.stringify(S, null, 2), 'application/json'); toast('バックアップを書き出しました'); break;
+    case 'export': if (await download(`lessonbook-backup-${todayKey()}.json`, JSON.stringify(S, null, 2), 'application/json')) toast('バックアップを書き出しました'); break;
     case 'import': $('#importfile').click(); break;
     case 'sample':
       if (S.students.length && !await ask('現在のデータにサンプルの生徒5名と予定を追加します。', '追加する')) break;
