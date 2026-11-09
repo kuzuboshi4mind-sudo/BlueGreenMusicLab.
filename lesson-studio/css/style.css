@@ -1,0 +1,1462 @@
+/* =========================================================
+   色の設定(ここを変えるとアプリ全体の色が変わる)
+   ========================================================= */
+:root {
+  --bg: #f3f8f7;            /* 背景 */
+  --surface: #ffffff;       /* 表のマス */
+  --text: #1c2b2a;          /* 文字 */
+  --muted: #6b7f7c;         /* 薄い文字 */
+  --accent: #128679;        /* 青緑(基調の色) */
+  --accent-text: #ffffff;   /* 青緑の上の文字 */
+  --line: #d3e2df;          /* 罫線 */
+  --line-strong: #a9c4bf;   /* 1時間ごとの罫線 */
+  --head: #e3f1ee;          /* 見出しのマス */
+  --memo: #f0f7f5;          /* 日ごとのメモ行 */
+  --holiday: #dcf0fa;       /* 土日・祝日の列(水色) */
+  --holiday-head: #c4e6f6;
+  --today: #fff4b8;         /* 今日の列(黄色) */
+  --today-head: #f6d84a;
+  --sun: #d0473c;           /* 日曜・祝日の文字 */
+  --sat: #2f6fd0;           /* 土曜の文字 */
+  --tentative: #e07b1a;     /* 仮の月の印(オレンジ。Numbers の「予定」の行と同じ系統) */
+  --danger: #c0392b;        /* 削除ボタン */
+
+  /* 大きさ。--zx(横)・--zy(縦)・--zf(文字)は表の拡大率で、ピンチ操作に合わせて js/zoom.js が変える */
+  --zx: 1;
+  --zy: 1;
+  --zf: 1;
+  --time-col: calc(56px * max(var(--zf), 0.8));  /* 時刻の列の幅 */
+  --day-base: 58px;                              /* 日付の列の幅(拡大率1のとき。スマホは下で広くする) */
+  --day-col: calc(var(--day-base) * var(--zx));  /* 日付の列の幅 */
+  --row-base: 28px;                              /* 30分の行の高さ(拡大率1のとき。スマホは下で小さくする) */
+  --row: calc(var(--row-base) * var(--zy));      /* 30分の行の高さ */
+  --h-date: calc(34px * var(--zf));              /* 日付の行の高さ */
+  --h-week: calc(26px * var(--zf));              /* 曜日の行の高さ */
+  --h-memo: calc(40px * var(--zf));              /* メモの行の高さ */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1716;
+    --surface: #141f1e;
+    --text: #e1eeec;
+    --muted: #8ea5a1;
+    --accent: #3fbfb0;
+    --accent-text: #08201d;
+    --line: #263937;
+    --line-strong: #3d5753;
+    --head: #1a2c2a;
+    --memo: #172625;
+    --holiday: #142e3a;
+    --holiday-head: #1b3e4e;
+    --today: #39340f;
+    --today-head: #7a6a12;
+    --sun: #ff8a7e;
+    --sat: #84b3ff;
+    --tentative: #ffa552;
+    --danger: #ff7b6e;
+  }
+}
+
+/* =========================================================
+   全体の配置
+   ========================================================= */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;           /* 画面の高さぴったり */
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 上の帯 */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+
+.month-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.month-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ボタン(指で押しやすい大きさ:高さ44px以上) */
+.btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* =========================================================
+   月表
+   ========================================================= */
+/* 表の枠。この中だけ縦横にスクロールする */
+.calendar-scroll {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.calendar {
+  border-collapse: separate;   /* 見出しの固定をきれいにするため */
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: calc(12px * var(--zf));
+  background: var(--surface);
+}
+
+.calendar th,
+.calendar td {
+  width: var(--day-col);
+  min-width: var(--day-col);
+  max-width: var(--day-col);
+  height: var(--row);
+  padding: 0 2px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  vertical-align: middle;
+  background: var(--surface);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ---- 上に固定する3行(日付・曜日・メモ) ---- */
+.calendar thead th {
+  position: sticky;
+  z-index: 2;
+  background: var(--head);
+}
+.calendar .row-date th { top: 0; height: var(--h-date); font-size: 1.25em; font-weight: 700; }
+.calendar .row-week th { top: var(--h-date); height: var(--h-week); font-weight: 600; }
+.calendar .row-memo th {
+  top: calc(var(--h-date) + var(--h-week));
+  height: var(--h-memo);
+  background: var(--memo);
+  font-weight: 400;
+  border-bottom: 2px solid var(--line-strong);
+  white-space: normal;
+  line-height: 1.2;
+}
+
+/* ---- 左に固定する時刻の列 ---- */
+.calendar .time-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: var(--time-col);
+  min-width: var(--time-col);
+  max-width: var(--time-col);
+  background: var(--head);
+  font-variant-numeric: tabular-nums;
+  border-right: 2px solid var(--line-strong);
+}
+/* 左上の角は、縦にも横にも固定 */
+.calendar thead .time-col { z-index: 3; }
+
+.calendar tbody .time-col { color: var(--muted); }
+.calendar tbody tr.hour .time-col { color: var(--text); font-weight: 700; }
+/* 1時間ごとの区切り線を少し濃く(:30 の行の下線を濃くする。行の高さを変えないため) */
+.calendar tbody tr:not(.hour) td,
+.calendar tbody tr:not(.hour) .time-col { border-bottom-color: var(--line-strong); }
+
+/* ---- 曜日の文字色 ---- */
+.calendar .sun,
+.calendar .holiday-name { color: var(--sun); }
+.calendar .sat { color: var(--sat); }
+
+.holiday-name {
+  display: block;
+  font-size: 0.83em;
+}
+
+/* ---- 土日・祝日の列(水色) ---- */
+.calendar td.off { background: var(--holiday); }
+.calendar thead th.off { background: var(--holiday-head); }
+.calendar thead .row-memo th.off { background: var(--holiday); }
+
+/* ---- 今日の列(黄色。土日より優先) ---- */
+.calendar td.today { background: var(--today); }
+.calendar thead th.today { background: var(--today-head); }
+.calendar thead .row-memo th.today { background: var(--today); }
+
+/* 表のマスはタップできる */
+.calendar tbody td { cursor: pointer; overflow: visible; padding: 0; vertical-align: top; }
+.calendar th.day-memo { cursor: pointer; }
+
+/* 日ごとのメモ */
+.day-note {
+  display: block;
+  font-weight: 700;
+  font-size: 0.92em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   予定(レッスン)のブロック
+   ========================================================= */
+/* マスの中の入れ物。ブロックはここを基準に、開始時刻と長さに合わせて置く */
+.slot {
+  position: relative;
+  height: 0;              /* マスの高さを変えないよう、高さ0の目印にする */
+  pointer-events: none;   /* 空いた所のタップは下のマスに通す */
+}
+
+.lesson {
+  position: absolute;
+  top: calc(var(--offset) / 30 * var(--row) + 1px);
+  height: calc(var(--dur) / 30 * var(--row) - 2px);
+  margin: 0;
+  padding: 1px 3px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  font: inherit;
+  font-size: 1em;
+  line-height: 1.15;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.lesson:active { filter: brightness(0.92); }
+.lesson-name {
+  max-width: 100%;
+  font-weight: 700;
+  white-space: normal;      /* 幅がせまいときは折り返す */
+  word-break: break-all;
+  overflow: hidden;
+}
+/* 短いレッスン(15分・20分)は1行だけ */
+.lesson.short .lesson-name {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lesson-dur { font-size: 0.83em; opacity: 0.85; }
+.lesson-memo-mark {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  font-size: 0.75em;
+}
+/* 短いレッスン(15分・20分)は名前だけ */
+.lesson.short .lesson-dur { display: none; }
+.lesson.short { font-size: 0.92em; padding-top: 0; padding-bottom: 0; }
+
+/* スマホ(幅がせまい、または横向きで高さが低い画面)は、30分の行の高さを 2/3 にする
+   iPad はどちらの向きでも当てはまらないので、今までどおり */
+@media (max-width: 600px), (max-height: 500px) {
+  /* 行は低く、列は広く(名前が読めるように) */
+  :root { --row-base: 16px; --day-base: 36px; }
+  .calendar { font-size: calc(11px * var(--zf)); }
+  /* 30分以下の予定は、名前を1行にして収める */
+  .lesson.half { padding-top: 0; padding-bottom: 0; }
+  .lesson.half .lesson-name { white-space: nowrap; text-overflow: ellipsis; }
+  /* 名前は1行にして(入りきらなければ「…」)、たての1文字ずつの折り返しを防ぐ */
+  .lesson-name { white-space: nowrap; text-overflow: ellipsis; }
+  /* 15分・20分は高さが小さいので、文字を小さくし、枠を細くする */
+  /* 15分・20分:行が低いので、すき間をなくして高さいっぱいに名前を出す */
+  .calendar .lesson.short {
+    height: calc(var(--dur) / 30 * var(--row) - 1px);
+    font-size: 0.66em; line-height: 1; padding: 0 2px; border-width: 1px; border-radius: 3px;
+  }
+}
+
+/* =========================================================
+   予定の状態:確約=濃い色+◯、仮=薄い色+点線、キャンセル=灰色+×
+   ========================================================= */
+.lesson.confirmed,
+.lesson.absent {
+  background: var(--type-color);
+}
+.lesson.tentative {
+  /* 種類の色を白(ダークモードでは黒)に3割だけ混ぜた薄い色 */
+  background: color-mix(in srgb, var(--type-color) 30%, var(--surface));
+  border: 2px dashed var(--type-color);
+  color: var(--text);
+}
+.lesson.tentative .lesson-name { font-weight: 500; }
+.lesson.cancelled {
+  background: repeating-linear-gradient(-45deg, var(--surface) 0 4px, var(--head) 4px 8px);
+  border: 1px solid color-mix(in srgb, var(--type-color) 60%, var(--surface));
+  color: var(--muted);
+}
+.lesson.cancelled .lesson-name { text-decoration: line-through; }
+.lesson.none {
+  /* 自分の予定:白地に、左の太い線と文字で種類の色を示す */
+  background: color-mix(in srgb, var(--type-color) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--type-color) 50%, var(--surface));
+  border-left: 5px solid var(--type-color);
+  color: var(--text);
+  box-shadow: none;
+}
+.lesson.none .lesson-name { font-weight: 600; }
+.lesson-mark { font-weight: 900; font-size: 0.95em; }
+.lesson.confirmed .lesson-mark { margin-left: 1px; }
+.lesson.cancelled .lesson-mark {
+  color: var(--danger);
+  margin-right: 1px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* 状態の選択ボタン:選んだときの色 */
+.chip.status-confirmed input:checked + span { background: var(--accent); border-color: var(--accent); }
+.chip.status-tentative input:checked + span {
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface));
+  border: 2px dashed var(--accent);
+  color: var(--text);
+}
+.chip.status-absent input:checked + span { background: #e07b1a; border-color: #e07b1a; color: #fff; }
+.chip.status-cancelled input:checked + span { background: var(--danger); border-color: var(--danger); color: #fff; }
+.chip.status-none input:checked + span {
+  background: var(--surface);
+  border-color: var(--text);
+  border-left-width: 6px;
+  color: var(--text);
+}
+
+/* =========================================================
+   種類の色の見本・状態の見本(上の帯)
+   ========================================================= */
+.legends {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  width: 100%;
+}
+.status-legend {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+.status-legend li { display: flex; align-items: center; gap: 4px; }
+.legend-lesson {
+  --type-color: #4caf50;
+  position: static;
+  display: inline-flex;
+  flex-direction: row;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px !important;
+  font-weight: 700;
+  pointer-events: none;
+}
+.legend-lesson.confirmed { color: #fff; }
+.type-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+.type-legend li { display: flex; align-items: center; gap: 4px; }
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================================
+   入力画面(ダイアログ)
+   ========================================================= */
+.sheet {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 20px;
+  border: none;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+.sheet-small { width: min(420px, calc(100vw - 24px)); }
+.sheet::backdrop { background: rgba(0, 0, 0, 0.4); }
+.sheet h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+.sheet h2:focus { outline: none; }
+
+/* 入力画面の上の帯(題名・やめる・保存)。中身をスクロールしても上に残る */
+.sheet-head {
+  position: sticky;
+  top: -20px;              /* .sheet の上の余白(20px)の分 */
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -20px -20px 12px;
+  padding: 14px 20px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.sheet-head h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.field {
+  display: block;
+  margin: 0 0 14px;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* 入力欄(iPhone で勝手に拡大されないよう 16px 以上) */
+.sheet input[type="text"],
+.sheet input[type="date"],
+.sheet select,
+.sheet textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.sheet textarea { resize: vertical; }
+
+/* 選択ボタン(長さ・種類) */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.chip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--line-strong);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+}
+.chip input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.chip input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 種類のボタン:左に色の丸。選ぶとその色で塗られる */
+.type-chip span::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--type-color);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.type-chip input:checked + span {
+  border-color: var(--type-color);
+  background: var(--type-color);
+  color: var(--type-text);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--type-color);
+}
+.type-chip input:checked + span::before { border-color: var(--type-text); }
+
+.form-error {
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sheet-actions .spacer { flex: 1; }
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn[hidden] { display: none; }
+
+/* =========================================================
+   名前の候補(入力欄の下に出るボタン)
+   ========================================================= */
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.suggest[hidden] { display: none; }
+.suggest-item {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  background: var(--head);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* 長さ「終了時刻で指定」のときの終了時刻 */
+.end-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-weight: 700;
+}
+.end-field[hidden] { display: none; }
+.end-field select { width: auto !important; min-width: 110px; }
+.end-length { color: var(--muted); font-weight: 400; }
+
+.sheet-note {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* =========================================================
+   マスの選択(長押し)
+   ========================================================= */
+/* 長押しで文字の選択やメニューが出ないようにする */
+.calendar {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* 位置を調べる一瞬だけ、予定の帯を素通りさせる */
+.calendar.picking .lesson { pointer-events: none; }
+
+/* マスの色(予定とは別に塗った色)。ダークモードでは少し落ち着かせる */
+/* 土日・今日・しま模様の色より前に出すため !important(選択中の色は background-image なので重なって見える) */
+.calendar tbody td.painted { background: var(--cell-color) !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .calendar tbody td.painted { background: color-mix(in srgb, var(--cell-color) 55%, var(--surface)) !important; }
+}
+:root[data-theme="dark"] .calendar tbody td.painted { background: color-mix(in srgb, var(--cell-color) 55%, var(--surface)) !important; }
+.cell-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+.cell-swatch { aspect-ratio: 1; min-height: 48px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; font-size: 0.75rem; color: #333; }
+.cell-swatch.last { box-shadow: 0 0 0 3px var(--accent); }
+
+.calendar td.sel {
+  background-image: linear-gradient(color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 22%, transparent));
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* 選択中は予定の帯を少し薄くして、選んだマスを見やすく */
+.calendar.selecting .lesson { opacity: 0.75; }
+
+.selection-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--surface);
+  border-top: 2px solid var(--accent);
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.15);
+}
+.selection-bar[hidden] { display: none; }
+.selection-info { font-weight: 700; color: var(--accent); }
+.selection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+.toast {
+  pointer-events: none;   /* お知らせの下のマスもタップできるように */
+  position: fixed;
+  left: 50%;
+  bottom: calc(110px + env(safe-area-inset-bottom));
+  z-index: 30;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 22px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.toast[hidden] { display: none; }
+body.has-selection .calendar-scroll { padding-bottom: 130px; }
+.form-error:empty { display: none; }
+
+/* =========================================================
+   設定画面
+   ========================================================= */
+.sheet-large { width: min(760px, calc(100vw - 24px)); }
+.btn-small { min-height: 40px; min-width: 40px; padding: 0 10px; font-size: 0.9rem; }
+
+.settings-section {
+  margin: 0 0 24px;
+  padding-top: 8px;
+}
+.settings-section h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.type-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.type-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.type-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.swatch {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  cursor: pointer;
+}
+.type-row.open .swatch { box-shadow: 0 0 0 3px var(--accent); }
+.sheet input.type-name {
+  flex: 1 1 140px;
+  width: auto;
+  min-width: 120px;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+.row-buttons { display: inline-flex; gap: 6px; }
+
+/* 色の見本(色の丸をタップしたときだけ出る) */
+.palette {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px 54px;
+}
+.type-row.open .palette { display: flex; }
+.palette-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  cursor: pointer;
+}
+.palette-dot.current { box-shadow: 0 0 0 3px var(--text); }
+.palette-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.palette-custom input { width: 44px; height: 36px; padding: 0; border: none; background: none; }
+
+.rule-table { border-collapse: collapse; margin: 0 0 12px; }
+.rule-table td { padding: 4px 6px; white-space: nowrap; }
+.sheet .rule-table input {
+  width: 90px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: right;
+}
+
+/* 表の大きさボタン(1か月を1画面に / 元の大きさ) */
+.zoom-btn[aria-pressed="true"] { background: var(--head); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+/* 長押しのあと指でなぞっている間は、表がスクロールしないように止める */
+.calendar-scroll.drag-lock { overflow: hidden; }
+.toggle-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+
+/* =========================================================
+   ログイン画面
+   ========================================================= */
+body.locked > :not(#login-screen) { display: none !important; }
+.login-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px 16px;
+}
+.login-screen[hidden] { display: none; }
+.login-card {
+  width: min(380px, 100%);
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+.login-card .field { text-align: left; }
+.login-card h1 { margin: 12px 0 20px; font-size: 1.3rem; color: var(--accent); }
+.login-icon { border-radius: 20px; }
+.login-card input {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.login-submit { width: 100%; min-height: 50px; font-size: 1.05rem; }
+
+/* =========================================================
+   ゴミ箱・バックアップ
+   ========================================================= */
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.trash-count { font-size: 0.9rem; color: var(--muted); font-weight: 400; }
+.trash-list { margin: 0; padding: 0; list-style: none; }
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.trash-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trash-main span { color: var(--text); font-size: 0.95rem; }
+.trash-main small { color: var(--muted); }
+.trash-empty { padding: 24px 0; text-align: center; color: var(--muted); }
+
+/* =========================================================
+   毎週の固定枠
+   ========================================================= */
+.lesson-repeat-mark {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  font-size: 0.75em;
+  opacity: 0.8;
+}
+.recurring-info {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--head);
+  color: var(--accent);
+  font-weight: 700;
+}
+.recurring-info[hidden] { display: none; }
+#repeat-field[hidden] { display: none; }
+.scope-buttons { display: flex; flex-direction: column; gap: 10px; }
+.scope-buttons .btn { min-height: 50px; justify-content: center; }
+.slot-list { margin: 0 0 12px; padding: 0; list-style: none; }
+.slot-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.slot-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.slot-swatch { width: 16px; height: 16px; border-radius: 4px; }
+.slot-dates { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.9rem; color: var(--muted); }
+.slot-dates input, .skip-range input {
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.slot-ended { color: var(--danger); }
+.slot-skips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.9rem; color: var(--muted); }
+.skip-chip {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--head);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.slot-empty { padding: 8px 0; color: var(--muted); font-size: 0.9rem; }
+.skip-range { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--head); }
+.skip-range label { display: inline-flex; align-items: center; gap: 6px; }
+.sheet select.repeat-select { width: auto; min-width: 220px; }
+
+/* =========================================================
+   集計
+   ========================================================= */
+.title-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.summary-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.summary-chip strong { color: var(--accent); font-size: 1.1rem; }
+.summary-table { width: 100%; border-collapse: collapse; margin: 4px 0 12px; font-variant-numeric: tabular-nums; }
+.summary-table th, .summary-table td { padding: 10px 8px; vertical-align: middle; border-bottom: 1px solid var(--line); text-align: right; }
+.summary-table th[scope="row"], .summary-table thead th:first-child { text-align: left; }
+.summary-table thead th { font-size: 0.85rem; color: var(--muted); }
+.summary-table th[scope="row"] { font-weight: 600; white-space: nowrap; }
+.summary-table th[scope="row"] .legend-swatch { display: inline-block; margin-right: 8px; vertical-align: -2px; }
+.summary-table tfoot th, .summary-table tfoot td { border-top: 2px solid var(--line-strong); border-bottom: none; font-size: 1.05rem; }
+.summary-table td strong { font-size: 1.1rem; }
+.summary-table caption.summary-sub { text-align: left; }
+.summary-sub { font-size: 0.95rem; font-weight: 700; color: var(--muted); margin: 8px 0 2px; }
+.summary-table .tentative-col { color: var(--muted); }
+.summary-table .tentative-col strong { color: var(--muted); }
+.muted { color: var(--muted); }
+
+/* =========================================================
+   生徒メモ
+   ========================================================= */
+.students-tools { display: flex; gap: 8px; margin-bottom: 12px; }
+.sheet .students-tools input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.students-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.students-list li + li { border-top: 1px solid var(--line); }
+.students-empty { padding: 16px 4px; color: var(--muted); }
+.student-row {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.student-row:active { background: var(--line); }
+.student-row .slot-swatch { flex: none; }
+.student-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.student-main small { color: var(--muted); }
+.student-memo-preview {
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.student-arrow { color: var(--muted); font-size: 1.4rem; }
+.field-help[hidden] { display: none; }
+.field-help { display: block; margin-top: 4px; color: var(--muted); font-size: 0.8rem; }
+.student-info h3 { margin: 16px 0 6px; font-size: 0.85rem; color: var(--muted); }
+.student-lessons { margin: 0; padding-left: 1.2em; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.student-lessons .is-cancelled { color: var(--muted); text-decoration: line-through; }
+/* 予定の入力画面:名前の下の生徒メモ */
+.student-memo-hint {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+.hidden-students { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.hidden-students summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); cursor: pointer; }
+.hidden-student { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px; }
+
+/* =========================================================
+   仮の月
+   ========================================================= */
+.month-status {
+  min-height: 36px;
+  min-width: 52px;
+  padding: 0 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 18px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.month-status[aria-pressed="true"] {
+  border: 2px solid var(--tentative);
+  background: var(--tentative);
+  color: #fff;
+  font-weight: 700;
+}
+body.month-tentative .month-title { color: var(--tentative); }
+/* 表の上の端をオレンジの点線にして、仮の月だとわかるように */
+body.month-tentative .calendar-scroll { border-top: 4px dashed var(--tentative); }
+
+/* =========================================================
+   スマホ:上の帯を小さくして、表を広く見せる
+   (幅がせまい、または横向きで高さが低い画面。iPad は当てはまらない)
+   ========================================================= */
+@media (max-width: 600px), (max-height: 500px) {
+  .app-header { gap: 6px 10px; padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 6px; }
+  .month-title { font-size: 1.25rem; }
+  .title-group { gap: 8px; }
+  .summary-chip { min-height: 36px; padding: 0 10px; font-size: 0.85rem; }
+  .summary-chip strong { font-size: 1rem; }
+  .month-nav { gap: 6px; flex-wrap: nowrap; }
+  .month-nav .btn { min-height: 40px; min-width: 40px; padding: 0 10px; font-size: 0.95rem; }
+  .btn-label { display: none; }   /* 「前月」「次月」「生徒」「設定」の文字をかくして、印だけにする */
+  /* 色と状態の見本は1行にして、横にスクロール */
+  .legends { flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding-bottom: 2px; scrollbar-width: none; }
+  .legends::-webkit-scrollbar { display: none; }
+  .type-legend, .status-legend { flex-wrap: nowrap; flex: none; white-space: nowrap; }
+  .type-legend { gap: 10px; }
+}
+
+/* =========================================================
+   LINE で予定を送る
+   ========================================================= */
+.btn-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #06c755;     /* LINE の緑 */
+  border-color: #06c755;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+.btn-line[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+#student-line { width: 100%; margin: 4px 0 8px; }
+.line-template { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.line-template summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); cursor: pointer; }
+.line-template textarea { margin-bottom: 8px; }
+.button-row + .sheet-note { margin-top: 10px; }
+
+/* 生徒の一覧のまとまり(連絡が必要 / 返事待ち / 確定済み / 予定なし) */
+.student-group-head {
+  margin: 14px 0 4px;
+  padding: 0 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.student-group-head.todo { color: var(--tentative); }
+.students-list li.student-group { border-top: none; }
+/* 仮の予定がある生徒は、表の「仮」と同じ点線の枠 */
+.student-row.todo, .student-row.waiting {
+  margin: 4px 0;
+  border: 2px dashed var(--tentative);
+  border-radius: 10px;
+  padding: 8px 8px;
+}
+.student-row.waiting { border-color: var(--line-strong); }
+.student-row.none { opacity: 0.6; }
+.student-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: 1px;
+  background: var(--tentative);
+  color: #fff;
+}
+.student-badge.reschedule { background: var(--danger, #d0473c); color: #fff; margin-left: 4px; }
+.reschedule-box { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+.reschedule-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.student-badge.waiting { background: var(--line); color: var(--text); }
+/* 「👤 生徒」ボタンの数字(連絡が必要な人数) */
+#open-students { position: relative; }
+.count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--tentative);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+.count-badge[hidden] { display: none; }
+/* 生徒の画面:LINE で送った印 */
+.student-sent { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; font-size: 0.9rem; color: var(--muted); }
+/* LINE の画面:送り先 */
+.line-to { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, #06c755 12%, var(--surface)); font-size: 1.05rem; }
+.line-to strong { font-size: 1.25rem; }
+.line-to.unset { background: var(--memo); color: var(--muted); font-size: 0.9rem; }
+/* 生徒の画面:仮の予定の一覧と「確定にする」 */
+.student-sent { display: block; padding: 10px 12px; border: 2px dashed var(--tentative); border-radius: 10px; }
+.student-sent .sent-head { margin: 0 0 6px; color: var(--text); }
+.line-members { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.line-member { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; }
+.line-member.is-main { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: var(--accent); }
+.line-member .x { color: var(--muted); font-size: 1.1rem; }
+#line-add { width: 100%; min-height: 44px; }
+#line-add-suggest { margin-top: 6px; }
+.line-suggest-label { width: 100%; font-size: 0.8rem; color: var(--muted); }
+.line-patterns { display: flex; flex-wrap: wrap; gap: 8px; }
+.line-pattern { min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.line-pattern[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.tentative-list .pick-head { margin-top: 6px; font-weight: 700; color: var(--accent); }
+.tentative-list { list-style: none; margin: 0 0 10px; padding: 0; font-variant-numeric: tabular-nums; color: var(--text); }
+.tentative-list label { display: flex; align-items: center; gap: 8px; min-height: 40px; cursor: pointer; }
+.tentative-list input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.tentative-list .sent-mark { margin-left: auto; font-size: 0.75rem; color: var(--muted); }
+.student-sent[hidden] { display: none; }
+.student-sent { margin: 0 0 10px; }
+.tentative-list .sent-mark { white-space: nowrap; }
+#student-line { margin: 0 0 16px; }
+
+/* =========================================================
+   Numbers 風の見た目(2026-10-16)
+   今まで使っていた Numbers の表に近づける:
+   ・日付の行は青紫に白い字、「予定」の行はオレンジ、空いたマスは30分ごとに白と薄い灰色のしま
+   ・予定はマスいっぱいに平らに塗り、黒い字。確約は赤い○、キャンセルは赤い×、仮は印なし
+   ・自分の予定(なし)は塗らずに小さな字
+   ========================================================= */
+:root {
+  --nb-head: #8e9bf5;          /* 日付の行(青紫) */
+  --nb-head-text: #ffffff;
+  --nb-zebra: #f2f2f1;         /* しま(:30 の行) */
+  --nb-off: #d6f1fd;           /* 土日・祝日の列 */
+  --nb-off-zebra: #c9e9f8;
+  --nb-today: #fff6c4;
+  --nb-today-zebra: #fbefb0;
+  --nb-grid: #e3e3e3;          /* 罫線 */
+  --nb-memo: linear-gradient(180deg, #ffc165, #ed620e);   /* 「予定」の行 */
+  --nb-memo-text: #3b1d00;
+  --nb-cell-text: #1a1a1a;     /* 塗ったマスの文字 */
+  --nb-red: #e8382c;           /* ○ と × */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nb-head: #4b56a8;
+    --nb-zebra: #1b2625;
+    --nb-off: #13303d;
+    --nb-off-zebra: #183846;
+    --nb-today: #3a3412;
+    --nb-today-zebra: #433c15;
+    --nb-grid: #2b3b39;
+    --nb-red: #ff5b4f;
+  }
+}
+
+.calendar { font-family: "Helvetica Neue", -apple-system, "Hiragino Sans", sans-serif; }
+.calendar th, .calendar td { border-right-color: var(--nb-grid); border-bottom-color: var(--nb-grid); }
+.calendar tbody tr:not(.hour) td,
+.calendar tbody tr:not(.hour) .time-col { border-bottom-color: var(--nb-grid); }
+
+/* 日付の行:青紫に白い太字 */
+.calendar thead .row-date th,
+.calendar thead .row-date th.off,
+.calendar thead .row-date th.sun,
+.calendar thead .row-date th.sat { background: var(--nb-head); color: var(--nb-head-text); }
+.calendar thead .row-date th.today { background: #f6d84a; color: #1a1a1a; }
+/* 曜日の行:白。日曜・祝日は赤 */
+.calendar thead .row-week th,
+.calendar thead .row-week th.off { background: var(--surface); color: var(--text); }
+.calendar thead .row-week th.sun { color: var(--sun); }
+.calendar .row-week th.sat { color: var(--text); }
+.calendar thead .row-week th.today { background: var(--nb-today); }
+/* 「予定」の行:オレンジ */
+.calendar thead .row-memo th,
+.calendar thead .row-memo th.off,
+.calendar thead .row-memo th.today { background: var(--nb-memo); color: var(--nb-memo-text); }
+.calendar .row-memo .day-note { color: var(--nb-memo-text); font-weight: 600; }
+.calendar .row-memo .holiday-name { color: #8a1200; }
+.calendar thead .row-memo th.time-col { background: var(--surface); color: var(--muted); }
+/* 時刻の列:白地に灰色の字 */
+.calendar tbody .time-col,
+.calendar tbody tr.hour .time-col { background: var(--surface); color: #555; font-weight: 500; }
+.calendar thead .row-date .time-col { background: var(--nb-head); color: var(--nb-head-text); }
+
+/* 空いたマス:30分ごとのしま。土日祝は水色、今日は黄色 */
+.calendar tbody td { background: var(--surface); }
+.calendar tbody tr:not(.hour) td { background: var(--nb-zebra); }
+.calendar tbody td.off { background: var(--nb-off); }
+.calendar tbody tr:not(.hour) td.off { background: var(--nb-off-zebra); }
+.calendar tbody td.today { background: var(--nb-today); }
+.calendar tbody tr:not(.hour) td.today { background: var(--nb-today-zebra); }
+
+/* 予定:マスいっぱいに平らに塗る(角丸・すき間・影なし) */
+.calendar .lesson,
+.legend-lesson.lesson {
+  top: calc(var(--offset) / 30 * var(--row));
+  height: calc(var(--dur) / 30 * var(--row));
+  padding: 0 2px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  justify-content: flex-start;
+  color: var(--nb-cell-text);
+  line-height: var(--row);
+  font-weight: 600;
+}
+.calendar .lesson.confirmed,
+.calendar .lesson.absent,
+.calendar .lesson.tentative,
+.calendar .lesson.cancelled { background: var(--type-color); color: var(--nb-cell-text); }
+/* 欠席:確約と同じ濃い色に、オレンジの「欠」(消化したレッスン。2026-11-04) */
+.lesson-mark.absent {
+  display: inline-block; margin-right: 2px; padding: 0 2px; border-radius: 3px;
+  background: #e07b1a; color: #fff; font-size: 0.75em; font-weight: 700; line-height: 1.3; vertical-align: 0.05em;
+}
+/* 30分ごとの行に1行ずつ。はみ出た文字は切る(折り返さない) */
+.calendar .lesson .lesson-name,
+.calendar .lesson .lesson-line {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: var(--row);
+  line-height: var(--row);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  text-decoration: none;
+  font-weight: 600;
+}
+.calendar .lesson .lesson-line { font-weight: 500; }
+/* 30分に満たない最後の行(45分の「45分」など):残りの高さに合わせて文字を小さくし、枠の中に収める */
+.calendar .lesson .lesson-line.part {
+  height: calc(var(--part) / 30 * var(--row));
+  line-height: calc(var(--part) / 30 * var(--row));
+  font-size: min(0.85em, calc(var(--part) / 30 * var(--row) * 0.85));
+}
+/* スマホは行が低いので、名前の下の「45分」は読める大きさ(8px)より小さくしない。
+   名前の横には添えない(長い名前だと見切れるため。2026-10-16) */
+@media (max-width: 600px), (max-height: 500px) {
+  .calendar .lesson .lesson-line.part {
+    font-size: max(8px, calc(var(--part) / 30 * var(--row) * 0.95));
+    line-height: 1;
+    margin-top: -1px;   /* 枠の下で切れないよう少し上へ */
+    overflow: visible;
+  }
+}
+/* 仮:薄い色+点線(確約は濃い色で印なし) */
+.calendar .lesson.tentative { background: color-mix(in srgb, var(--type-color) 45%, #ffffff); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.calendar .lesson.tentative .lesson-name { font-weight: 600; }
+@supports (outline-style: dashed) {
+  .calendar .lesson.tentative { box-shadow: none; outline: 1px dashed rgba(0, 0, 0, 0.45); outline-offset: -2px; }
+}
+/* キャンセル:色を薄く、赤い × */
+.calendar .lesson.cancelled { opacity: 0.55; }
+/* 自分の予定:塗らずに小さな字 */
+.calendar .lesson.none {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.78em;
+  font-weight: 400;
+}
+.calendar .lesson.none .lesson-name,
+.calendar .lesson.none .lesson-line { font-weight: 400; }
+/* 赤い ○(確約)と × (キャンセル) */
+.lesson-mark.ok {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-left: 1px;
+  border: 0.16em solid var(--nb-red);
+  border-radius: 50%;
+  vertical-align: -0.08em;
+  box-sizing: border-box;
+}
+.lesson-mark.ng { color: var(--nb-red); font-weight: 900; margin-left: 1px; }
+.lesson .lesson-memo-mark, .lesson .lesson-repeat-mark { font-size: 0.7em; opacity: 0.7; }
+/* 15分・20分(1マスの半分) */
+.calendar .lesson.short { font-size: 0.8em; }
+.calendar .lesson.short .lesson-name { height: 100%; line-height: calc(var(--dur) / 30 * var(--row)); }
+.calendar .lesson.fill .lesson-name { font-size: 1em; }
+.lesson-short-dur { font-size: 0.65em; font-weight: 500; margin-left: 1px; opacity: 0.8; }
+/* 上の帯の見本も同じ見た目に */
+.legend-lesson.lesson { height: 20px; line-height: 20px; color: #1a1a1a; }
+.legend-lesson.lesson.tentative { outline: 1px dashed rgba(0, 0, 0, 0.45); outline-offset: -2px; background: color-mix(in srgb, var(--type-color) 45%, #ffffff); }
+.legend-lesson.lesson.cancelled { background: var(--type-color); opacity: 0.55; }
+.legend-lesson.lesson.none { background: transparent; font-weight: 400; }
+
+/* =========================================================
+   1日ビュー(スマホで開いた瞬間の表示。今日の1日を大きく1列で)
+   ========================================================= */
+body.day-view {
+  --day-col: calc(100vw - var(--time-col) - 4px);
+}
+body.day-view { --h-date: 0px; --h-week: 0px; }
+body.day-view .calendar { font-size: 14px; }
+/* 日付と曜日は上の題名に出ているので、表の見出しは「予定」の行だけにする */
+body.day-view .calendar .row-date,
+body.day-view .calendar .row-week { display: none; }
+body.day-view .calendar tbody .time-col { font-size: 11px; line-height: 1; }
+body.day-view .calendar .lesson { line-height: var(--row); }
+/* 1日ビューでは列全体が今日なので、黄色にせずふつうのしまにする */
+body.day-view .calendar tbody td.today { background: var(--surface); }
+body.day-view .calendar tbody tr:not(.hour) td.today { background: var(--nb-zebra); }
+body.day-view .calendar tbody td.off.today { background: var(--nb-off); }
+body.day-view .calendar tbody tr:not(.hour) td.off.today { background: var(--nb-off-zebra); }
+body.day-view .calendar .lesson.none { font-size: 0.85em; }
+body.day-view .calendar .row-date th[data-date] { font-size: 1.2em; }
+/* スマホでは「1か月表示」の代わりに「月表示 / 1日表示」(ピンチの拡大・縮小はそのまま使える) */
+@media (max-width: 600px), (max-height: 500px) {
+  #zoom-fit { display: none; }
+}
+.view-toggle[hidden] { display: none; }
+
+/* =========================================================
+   パステル寄りの色(2026-10-16):種類の色に白を混ぜて、やわらかい色で塗る
+   (設定の色はそのまま。仮はさらに薄く)
+   ========================================================= */
+:root { --pastel: 62%; --pastel-tentative: 32%; }
+.calendar .lesson.confirmed,
+.calendar .lesson.absent,
+.calendar .lesson.cancelled,
+.legend-lesson.lesson.confirmed,
+.legend-lesson.lesson.absent,
+.legend-lesson.lesson.cancelled { background: color-mix(in srgb, var(--type-color) var(--pastel), #ffffff); }
+.calendar .lesson.tentative,
+.legend-lesson.lesson.tentative { background: color-mix(in srgb, var(--type-color) var(--pastel-tentative), #ffffff); }
+.legend-swatch.pastel { background: color-mix(in srgb, var(--type-color) var(--pastel), #ffffff); }
+/* レッスン系(集計に入れる種類)は、パステルのまま少しだけ濃く(2026-10-16) */
+.calendar .lesson.counted,
+.legend-swatch.pastel.counted,
+.legend-lesson.lesson { --pastel: 74%; --pastel-tentative: 40%; }
+
+/* 種類「その他」は、二日酔いなどの書き込み用。状態にかかわらず、種類の色(初期値は JINIS より薄い水色)を
+   半透明(60%)で塗り、下のしま模様や土日の色が透けて見えるようにする。枠なし・小さめの文字
+   (2026-10-16 に 塗らない → 薄い水色 → 半透明の薄い水色) */
+.calendar .lesson.plain,
+.calendar .lesson.plain.confirmed,
+.calendar .lesson.plain.tentative,
+.calendar .lesson.plain.cancelled {
+  background: color-mix(in srgb, var(--type-color) 60%, transparent);
+  outline: none;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 0.78em;
+  font-weight: 400;
+}
+.calendar .lesson.plain .lesson-name,
+.calendar .lesson.plain .lesson-line { font-weight: 400; }
+
+/* 長時間の予定(60分より長い):先頭に開始時刻、末尾に終了時刻(2026-10-16) */
+.calendar .lesson .lesson-line.lesson-time { font-size: 0.82em; font-weight: 500; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.calendar .lesson .lesson-line.lesson-time.part { font-size: min(0.82em, calc(var(--part) / 30 * var(--row) * 0.85)); }
+@media (max-width: 600px), (max-height: 500px) {
+  .calendar .lesson .lesson-line.lesson-time.part { font-size: max(8px, calc(var(--part) / 30 * var(--row) * 0.95)); }
+}
+
+/* ダブルタップでマスに直接書き込む入力欄(js/inline-edit.js)。iPhone で画面が拡大されないよう文字は 16px */
+.inline-edit {
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 6px;
+  font: 600 16px/1 inherit;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fffbe6;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  outline: none;
+}
+#lesson-line { margin-top: 10px; width: 100%; }
+
+/* 生徒の画面の「メモアプリの記録」(js/students.js・js/memo-link.js) */
+.student-memoapp[hidden] { display: none; }
+.student-memoapp { margin: 4px 0 16px; padding: 10px 12px; border-radius: 10px; background: var(--memo, color-mix(in srgb, var(--accent) 8%, var(--surface))); }
+.student-memoapp h3 { margin: 0 0 6px; font-size: 0.95rem; color: var(--muted); }
+.memoapp-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.memoapp-list li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+.memoapp-list li:last-child { border-bottom: none; }
+.memoapp-date { flex: none; min-width: 5.2em; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.memoapp-text { white-space: pre-wrap; word-break: break-word; }
+.memoapp-list li.is-done .memoapp-text { color: var(--muted); }
+#memo-link-form[hidden] { display: none; }
+#line-confirm { margin-top: 10px; width: 100%; }
+
+/* 1日表示の「📝 メモ」(js/day-memos.js) */
+#day-memos[hidden] { display: none; }
+.day-memo-card { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.day-memo-card h3 { margin: 0 0 6px; font-size: 1.1rem; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.day-memo-card h3 small { font-size: 0.8rem; font-weight: 500; color: var(--muted); }
+.day-memo-time { font-size: 0.9rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.day-memo-label { margin: 8px 0 2px; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+.day-memo-text { margin: 0; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+.day-memo-app .memoapp-list { max-height: none; }
+.day-memo-card.is-private { background: color-mix(in srgb, var(--muted) 6%, transparent); border-style: dashed; }
+
+/* =========================================================
+   圏外のときの知らせ・バックアップの声かけ・この端末の写し(2026-11-09)
+   ========================================================= */
+.notice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.notice-bar[hidden] { display: none; }
+.notice-text { flex: 1 1 260px; min-width: 0; }
+.notice-offline {
+  background: color-mix(in srgb, var(--tentative) 18%, var(--surface));
+  font-weight: 600;
+}
+body.offline .calendar-scroll { border-top: 4px solid var(--tentative); }
+#last-backup { white-space: pre-line; }
+.sub-head { margin: 18px 0 6px; font-size: 1rem; }
+.day-copy-list { list-style: none; margin: 0; padding: 0; }
+.day-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
+}
+.day-copy-row small { color: var(--muted); margin-left: 6px; }
+.day-copy-row .btn { flex: none; white-space: nowrap; }
+
+/* 前月の生徒で、この月にまだ予定がない人(2026-11-09) */
+.missing-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 2px dashed var(--tentative);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.missing-chip[hidden] { display: none; }
+.missing-chip strong { color: var(--tentative); font-size: 1.05rem; }
+@media (max-width: 600px), (max-height: 500px) {
+  .missing-chip { min-height: 36px; padding: 0 10px; font-size: 0.85rem; }
+}
+.missing-list { list-style: none; margin: 0; padding: 0; }
+.missing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.missing-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.missing-main small { color: var(--muted); font-size: 0.85rem; }
+.missing-row .btn { flex: none; white-space: nowrap; }
+.missing-empty { padding: 12px 0; color: var(--muted); }

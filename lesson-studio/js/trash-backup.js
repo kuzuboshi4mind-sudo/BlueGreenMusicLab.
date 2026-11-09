@@ -1,0 +1,293 @@
+// ゴミ箱とバックアップの画面
+// ・ゴミ箱:削除した予定の一覧。1件ずつ「元に戻す」。30日を過ぎたものは自動で完全に消える
+// ・バックアップ:この月/全部の予定をファイル(.json)に書き出す。書き出したファイルを読み込んで元に戻す
+import * as store from './store.js';
+import { escapeHtml } from './calendar.js';
+import { buildXlsx, okiTypeIds } from './export-xlsx.js';
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+let getMonth = () => null;   // 表示中の月 { year, month } を返す関数(main.js から受け取る)
+let onChanged = () => {};
+
+const trashDialog = document.getElementById('trash-dialog');
+const trashList = document.getElementById('trash-list');
+const trashCount = document.getElementById('trash-count');
+const saveDialog = document.getElementById('save-dialog');
+const saveLink = document.getElementById('save-link');
+const saveShare = document.getElementById('save-share');
+const saveName = document.getElementById('save-name');
+const saveTitle = document.getElementById('save-title');
+const fileInput = document.getElementById('backup-file');
+const lastBackup = document.getElementById('last-backup');
+
+let pendingFile = null;   // 書き出し用に作ったファイル(共有ボタンで使う)
+let onSaved = () => {};   // 保存したあとにすること(バックアップなら書き出した日を記録)
+
+export function initTrashBackup(opts) {
+  ({ getMonth, onChanged } = opts);
+  document.getElementById('open-trash').addEventListener('click', openTrash);
+  trashList.addEventListener('click', onTrashClick);
+  document.getElementById('export-month').addEventListener('click', () => exportBackup(true));
+  document.getElementById('export-all').addEventListener('click', () => exportBackup(false));
+  document.getElementById('import-backup').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', importBackup);
+  document.getElementById('xlsx-month').addEventListener('click', () => exportXlsx(true));
+  document.getElementById('xlsx-year').addEventListener('click', () => exportXlsx(false));
+  saveShare.addEventListener('click', shareFile);
+  saveLink.addEventListener('click', () => { onSaved(); setTimeout(() => saveDialog.close(), 300); });
+  for (const d of [trashDialog, saveDialog]) {
+    d.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => d.close()));
+  }
+  dayCopyList.addEventListener('click', onDayCopyClick);
+  document.getElementById('backup-reminder-export').addEventListener('click', () => {
+    reminder.hidden = true;
+    exportBackup(false);
+  });
+  document.getElementById('backup-reminder-later').addEventListener('click', () => {
+    reminder.hidden = true;
+    try { localStorage.setItem(REMIND_SNOOZE_KEY, String(Date.now())); } catch { /* 覚えられなくても続ける */ }
+  });
+  showLastBackup();
+}
+
+function daysSince(iso) {
+  return Math.floor((Date.now() - new Date(iso)) / 86400000);
+}
+function shortDate(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+function timeLabel(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// 設定画面を開くたびに呼ぶ(前回の書き出し日・この端末の写しを出し直す)
+export async function showLastBackup() {
+  const at = store.lastBackupAt();
+  const full = await store.lastFullBackupAt();
+  const lines = [];
+  if (full) {
+    const days = daysSince(full);
+    lines.push(`前回の「全部」の書き出し(どの端末からでも):${shortDate(full)}(${days}日前)${days >= REMIND_DAYS ? ' — そろそろ書き出しておきましょう' : ''}`);
+  } else {
+    lines.push('「全部を書き出す」は、まだ一度もしていません。週に1回くらい書き出して、iCloud Drive などに保管しておくと安心です。');
+  }
+  if (at && at !== full) lines.push(`この端末での前回の書き出し:${shortDate(at)}(${daysSince(at)}日前)`);
+  lastBackup.textContent = lines.join('\n');
+  renderDayCopies();
+}
+
+// ---------------------------------------------------------
+// 「全部」の書き出しから7日たったら、アプリを開いたときに声をかける(「あとで」なら1日おく)
+// ---------------------------------------------------------
+const REMIND_DAYS = 7;
+const REMIND_SNOOZE_KEY = 'lesso.backupRemindSnooze';
+const reminder = document.getElementById('backup-reminder');
+const reminderText = document.getElementById('backup-reminder-text');
+
+export async function checkBackupReminder() {
+  if (store.isOffline()) return;
+  try {
+    const snooze = Number(localStorage.getItem(REMIND_SNOOZE_KEY) || 0);
+    if (Date.now() - snooze < 86400000) return;
+  } catch { /* 読めなければ声をかける */ }
+  const full = await store.lastFullBackupAt();
+  const days = full ? daysSince(full) : null;
+  if (days !== null && days < REMIND_DAYS) return;
+  reminderText.textContent = full
+    ? `前回の「全部」のバックアップから${days}日たちました。書き出して「ファイル」(iCloud Drive)に保存しておきましょう。`
+    : 'まだ「全部」のバックアップを書き出していません。書き出して「ファイル」(iCloud Drive)に保存しておきましょう。';
+  reminder.hidden = false;
+}
+
+// ---------------------------------------------------------
+// この端末に残している写し(日ごと)
+// ---------------------------------------------------------
+const dayCopies = document.getElementById('device-copies');
+const dayCopyList = document.getElementById('day-copy-list');
+const dayCopyStatus = document.getElementById('device-copy-status');
+
+async function renderDayCopies() {
+  if (!store.usesDeviceCopy) return;
+  dayCopies.hidden = false;
+  const info = store.deviceCopyInfo() || await store.loadDeviceCopy();
+  dayCopyStatus.textContent = info
+    ? `いちばん新しい写し:${timeLabel(info.savedAt)}${store.isOffline() ? '(いまはこの写しを表示しています)' : ''}`
+    : 'まだこの端末に写しがありません(クラウドにつながった状態で開くと作ります)。';
+  const list = await store.listDayCopies();
+  dayCopyList.innerHTML = list.map(c => {
+    const [y, m, d] = c.day.split('-').map(Number);
+    return `<li class="day-copy-row">
+      <span><strong>${m}/${d}(${WEEKDAYS[new Date(y, m - 1, d).getDay()]})</strong> の写し <small>${timeLabel(c.savedAt)} 時点・予定${c.lessons}件</small></span>
+      <button type="button" class="btn btn-small" data-copy="${escapeHtml(c.id)}">書き出す</button>
+    </li>`;
+  }).join('');
+}
+
+async function onDayCopyClick(e) {
+  const btn = e.target.closest('[data-copy]');
+  if (!btn) return;
+  try {
+    const data = await store.buildBackupFromDayCopy(btn.dataset.copy);
+    const day = btn.dataset.copy.slice(4).replaceAll('-', '');
+    const name = `lesson-backup-all-${day}-device.json`;
+    const file = new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
+    offerFile(file, 'この端末の写しを保存',
+      `${name}(${btn.dataset.copy.slice(4)} の写し・予定${data.lessons.length}件)。読み込むときは「ファイルから読み込む」から選びます。`);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function dateLabel(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  return `${m}/${d}(${WEEKDAYS[new Date(y, m - 1, d).getDay()]})`;
+}
+
+// ---------------------------------------------------------
+// ゴミ箱
+// ---------------------------------------------------------
+async function openTrash() {
+  await renderTrash();
+  trashDialog.showModal();
+  trashDialog.querySelector('h2').focus();
+}
+
+async function renderTrash() {
+  const [items, types] = await Promise.all([store.getTrash(), store.getTypes()]);
+  const typeName = Object.fromEntries(types.map(t => [t.id, t.name]));
+  trashCount.textContent = items.length ? `${items.length}件` : '';
+  if (!items.length) {
+    trashList.innerHTML = '<li class="trash-empty">ゴミ箱は空です</li>';
+    return;
+  }
+  trashList.innerHTML = items.map(l => {
+    const left = store.TRASH_DAYS - Math.floor((Date.now() - new Date(l.deletedAt)) / 86400000);
+    return `<li class="trash-row">
+      <div class="trash-main">
+        <strong>${escapeHtml(l.student || '(名前なし)')}</strong>
+        <span>${dateLabel(l.date)} ${l.start}〜 ${l.duration}分 ${escapeHtml(typeName[l.typeId] || '')}</span>
+        <small>あと${Math.max(0, left)}日で完全に消えます</small>
+      </div>
+      <button type="button" class="btn" data-restore="${escapeHtml(l.id)}">元に戻す</button>
+    </li>`;
+  }).join('');
+}
+
+async function onTrashClick(e) {
+  const btn = e.target.closest('[data-restore]');
+  if (!btn) return;
+  btn.disabled = true;
+  const [restored] = await store.restoreLessons([btn.dataset.restore]);
+  await renderTrash();
+  onChanged();
+  if (restored) showMessage(`元に戻しました:${dateLabel(restored.date)} ${restored.student || '(名前なし)'}`);
+}
+
+// ---------------------------------------------------------
+// バックアップの書き出し
+// ---------------------------------------------------------
+async function exportBackup(thisMonthOnly) {
+  const m = thisMonthOnly ? getMonth() : null;
+  const data = await store.buildBackup(m?.year, m?.month);
+  const today = new Date();
+  const stamp = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const name = m
+    ? `lesson-backup-${m.year}-${String(m.month).padStart(2, '0')}.json`
+    : `lesson-backup-all-${stamp}.json`;
+  const file = new File([JSON.stringify(data, null, 2)], name, { type: 'application/json' });
+  offerFile(file, 'バックアップを保存',
+    `${name}(予定${data.lessons.length}件・${data.months.length ? data.months.join('、') : '予定なし'})`,
+    async () => { await store.markBackedUp(!m); reminder.hidden = true; showLastBackup(); });
+}
+
+// できたファイルを保存する画面を出す(「ファイルを保存」と、使える端末では「共有…」)
+function offerFile(file, title, description, saved = () => {}) {
+  pendingFile = file;
+  onSaved = saved;
+  if (saveLink.href.startsWith('blob:')) URL.revokeObjectURL(saveLink.href);
+  saveLink.href = URL.createObjectURL(file);
+  saveLink.download = file.name;
+  saveTitle.textContent = title;
+  saveName.textContent = description;
+  // 共有(「ファイルに保存」「AirDrop」など)が使える端末だけ、共有ボタンを出す
+  saveShare.hidden = !(navigator.canShare && navigator.canShare({ files: [pendingFile] }));
+  saveDialog.showModal();
+  saveTitle.focus();
+}
+
+// ---------------------------------------------------------
+// Numbers への書き出し(.xlsx)
+// ---------------------------------------------------------
+async function exportXlsx(thisMonthOnly) {
+  const m = getMonth();
+  const months = thisMonthOnly ? [m] : Array.from({ length: 12 }, (_, i) => ({ year: m.year, month: i + 1 }));
+  // 「OKI川口・OKI加茂だけ」のときは、その2つの種類の予定だけ(ファイル名の終わりに -OKI)
+  const oki = document.getElementById('xlsx-filter').value === 'oki';
+  const onlyTypes = oki ? okiTypeIds(await store.getTypes()) : null;
+  const suffix = oki ? '-OKI' : '';
+  const name = thisMonthOnly
+    ? `lesson-${m.year}-${String(m.month).padStart(2, '0')}${suffix}.xlsx`
+    : `lesson-${m.year}${suffix}.xlsx`;
+  const btn = document.getElementById(thisMonthOnly ? 'xlsx-month' : 'xlsx-year');
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '作っています…';
+  try {
+    const file = await buildXlsx(months, name, onlyTypes);
+    offerFile(file, 'Numbers 用のファイルを保存',
+      `${name}(${thisMonthOnly ? `${m.month}月` : `${m.year}年1〜12月`}${oki ? '・OKI川口・OKI加茂だけ' : ''})。保存したファイルを「ファイル」アプリでタップすると Numbers で開けます。`);
+  } catch (err) {
+    alert(`書き出せませんでした(${err.message})`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+async function shareFile() {
+  try {
+    await navigator.share({ files: [pendingFile], title: pendingFile.name });
+    onSaved();
+    saveDialog.close();
+  } catch (err) {
+    if (err.name !== 'AbortError') alert(`共有できませんでした(${err.message})`);
+  }
+}
+
+// ---------------------------------------------------------
+// バックアップの読み込み
+// ---------------------------------------------------------
+async function importBackup() {
+  const file = fileInput.files[0];
+  fileInput.value = '';   // 同じファイルをもう一度選べるように
+  if (!file) return;
+  let data;
+  try {
+    data = store.checkBackup(JSON.parse(await file.text()));
+  } catch (err) {
+    alert(err instanceof SyntaxError ? 'このアプリのバックアップファイルではないようです' : err.message);
+    return;
+  }
+  const when = new Date(data.exportedAt);
+  const ok = confirm(
+    `${when.getMonth() + 1}月${when.getDate()}日に書き出したバックアップ(予定${data.lessons.length}件)を読み込みます。\n\n`
+    + `対象の月:${data.months.join('、') || 'なし'}\n`
+    + 'この月の今の予定と「予定」の行は、バックアップの内容に置き換わります。\n'
+    + '(今だけある予定はゴミ箱に入ります。読み込んだあと「戻す」で元に戻すこともできます)');
+  if (!ok) return;
+  const withSettings = !!data.settings && confirm('種類と色・換算表・毎週の固定枠も、バックアップの内容に戻しますか?\n(「キャンセル」なら今のままにします)');
+  const result = await store.restoreBackup(data, { withSettings });
+  onChanged();
+  showMessage(`バックアップを読み込みました(予定${result.lessons}件)`);
+}
+
+function showMessage(text) {
+  const toast = document.getElementById('toast');
+  toast.textContent = text;
+  toast.hidden = false;
+  clearTimeout(showMessage.timer);
+  showMessage.timer = setTimeout(() => { toast.hidden = true; }, 3000);
+}
