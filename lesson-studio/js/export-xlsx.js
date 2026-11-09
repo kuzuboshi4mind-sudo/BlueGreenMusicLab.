@@ -317,6 +317,45 @@ async function addMonthSheet(workbook, year, month, common) {
   return ws;
 }
 
+// ---- 予定の一覧(.xlsx の「予定の一覧」シートと .csv で共通)----
+const LIST_HEADERS = ['日付', '曜日', '開始', '終了', '分', '生徒・内容', '種類', '状態', '集計', '時間数(h)', 'メモ'];
+const STATUS_LABEL = { tentative: '仮', confirmed: '確約', absent: '欠席(消化)', cancelled: 'キャンセル', none: '自分の予定' };
+async function lessonRows(months, onlyTypes, types, rules) {
+  const typeById = Object.fromEntries(types.map(t => [t.id, t]));
+  const hoursOf = Object.fromEntries(rules.map(r => [r.minutes, r.hours]));
+  const rows = [];
+  for (const { year, month } of months) {
+    const lessons = (await store.getLessons(year, month))
+      .filter(l => !onlyTypes || onlyTypes.includes(l.typeId))
+      .sort((a, b) => (a.date + a.start.padStart(5, '0')).localeCompare(b.date + b.start.padStart(5, '0')));
+    for (const l of lessons) {
+      const [y, m, d] = l.date.split('-').map(Number);
+      const status = l.status || 'tentative';
+      const type = typeById[l.typeId];
+      const counted = !!type?.countInTotal && ['confirmed', 'absent'].includes(status);
+      rows.push([l.date, WEEKDAYS[new Date(y, m - 1, d).getDay()], l.start, fromMinutes(toMinutes(l.start) + l.duration),
+        l.duration, l.student || '', type?.name || '', STATUS_LABEL[status] || status, counted ? '○' : '',
+        counted ? (l.duration in hoursOf ? hoursOf[l.duration] : Math.round(l.duration / 60 * 100) / 100) : 0, l.memo || '']);
+    }
+  }
+  return rows;
+}
+function styleTable(ws, widths) {
+  widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  const head = ws.getRow(1);
+  head.font = { bold: true };
+  head.eachCell(c => { c.fill = fill(COLORS.head); });
+}
+
+// 予定の一覧の .csv(Excel で文字化けしないよう、先頭に BOM を付ける)
+export async function buildCsv(months, fileName, onlyTypes = null) {
+  const [types, rules] = await Promise.all([store.getTypes(), store.getDurationRules()]);
+  const rows = await lessonRows(months, onlyTypes, types, rules);
+  const cell = v => (/[",\n\r]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const text = '\ufeff' + [LIST_HEADERS, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
+  return new File([text], fileName, { type: 'text/csv' });
+}
+
 // 書き出す。months:[{ year, month }]。onlyTypes:種類の id の一覧(しぼるとき)。戻り値は File
 export async function buildXlsx(months, fileName, onlyTypes = null) {
   const ExcelJS = await loadExcelJS();
@@ -326,6 +365,27 @@ export async function buildXlsx(months, fileName, onlyTypes = null) {
   workbook.created = new Date();
   for (const { year, month } of months) {
     await addMonthSheet(workbook, year, month, { types, rules, students, onlyTypes });
+  }
+  // 予定の一覧(1件1行。並べ替え・絞り込み・ピボットに使いやすい形)
+  const rows = await lessonRows(months, onlyTypes, types, rules);
+  const list = workbook.addWorksheet('予定の一覧', { views: [{ state: 'frozen', ySplit: 1 }] });
+  list.addRow(LIST_HEADERS);
+  rows.forEach(r => list.addRow(r));
+  styleTable(list, [12, 5, 7, 7, 6, 16, 14, 10, 8, 10, 30]);
+  if (rows.length) list.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: LIST_HEADERS.length } };
+  // 月謝(種類をしぼったときは出さない)
+  if (!onlyTypes) {
+    const fees = workbook.addWorksheet('月謝', { views: [{ state: 'frozen', ySplit: 1 }] });
+    fees.addRow(['月', '生徒', '料金', '金額(円)', '消化した回数', '仮', '請求額(円)', '入金', '入金日']);
+    const kind = { monthly: '月謝', per: '1回ごと', none: '未設定' };
+    for (const { year, month } of months) {
+      for (const f of await store.getMonthFees(year, month)) {
+        fees.addRow([`${year}-${String(month).padStart(2, '0')}`, f.name, kind[f.plan.fee.kind], Number(f.plan.fee.amount) || 0,
+          f.consumed, f.tentative, f.amount, f.paid ? '済' : '未', f.paidDate || '']);
+      }
+    }
+    styleTable(fees, [10, 16, 10, 10, 10, 6, 12, 6, 12]);
+    [4, 7].forEach(c => { fees.getColumn(c).numFmt = '#,##0'; });
   }
   const buffer = await workbook.xlsx.writeBuffer();
   return new File([buffer], fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

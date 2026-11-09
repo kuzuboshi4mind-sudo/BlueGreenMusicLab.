@@ -1,5 +1,5 @@
 // 月謝と年間回数(汎用版で追加)
-// ・上の「💴 月謝」から開く。「月ごとの月謝」と「年間回数」の2つの画面
+// ・上の「月謝管理」から開く。「月ごとの月謝」と「年間回数」の2つの画面
 // ・月ごとの月謝:その月の生徒ごとに、料金・消化した回数・請求額・入金を一覧にする
 //   - 請求額は自動で計算(月謝=そのまま、1回ごと=確約+欠席(消化)の回数×金額)。欄に入れるとその月だけ手入力の金額にする
 //   - 「入金済み」をタップで記録(入金日は今日)。もう一度タップで未入金に戻す。どれも「戻す」で元に戻せる
@@ -77,7 +77,7 @@ async function showTab(name) {
   dialog.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === name)));
   monthBox.hidden = name !== 'month';
   annualBox.hidden = name !== 'annual';
-  document.getElementById('fees-title').textContent = name === 'month' ? '月謝' : '年間回数';
+  document.getElementById('fees-title').textContent = name === 'month' ? '月謝管理' : '月謝管理:年間回数';
   if (name === 'month') await renderMonth(); else await renderAnnual();
 }
 
@@ -200,7 +200,7 @@ async function renderAnnual() {
 }
 
 // ---------------------------------------------------------
-// 上の「💴 月謝」ボタンの数字:先月分で、まだ入金していない人(請求額が0より大きい人)
+// 上の「月謝管理」ボタンの数字:先月分で、まだ入金していない人(請求額が0より大きい人)
 // ---------------------------------------------------------
 export async function updateBadge() {
   try {

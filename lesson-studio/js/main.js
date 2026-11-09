@@ -10,6 +10,7 @@ import { initTrashBackup, showLastBackup, checkBackupReminder } from './trash-ba
 import { initRecurring } from './recurring.js';
 import { initStudents, openStudentByName } from './students.js';
 import { initFees, updateBadge as updateFeesBadge } from './fees.js';
+import { initCalendarSync, refreshCalendarFeed } from './calendar-sync.js';
 import { initLineShare } from './line-share.js';
 import { initSummary, updateSummary } from './summary.js';
 import { initInlineEdit, editLessonInline, editCellInline } from './inline-edit.js';
@@ -243,6 +244,7 @@ initDayMemos();
 dayMemosBtn.addEventListener('click', () => openDayMemos(selectedDate, shownLessons));
 initStudents({ onChanged: () => show({ keepScroll: true }) });
 initFees({ getMonth: () => current, onChanged: () => show({ keepScroll: true }), openStudent: openStudentByName });
+initCalendarSync();
 initMissingStudents();
 
 // 保存やクラウドとの通信に失敗したら、内容を知らせる(気づかないまま消えないように)
@@ -316,6 +318,8 @@ async function start() {
   }
   await show();
   if (store.isOffline()) return;
+  // カレンダーの同期:開いたときに最新を送っておく(失敗しても表示には影響しない)
+  refreshCalendarFeed();
   // 30日より前にゴミ箱に入れた予定を完全に消す(失敗しても表示には影響しない)
   // そのあとで、この端末の写しを作り直す(消したものが写しに残らないように)
   await store.purgeOldTrash().catch(err => console.warn(err));

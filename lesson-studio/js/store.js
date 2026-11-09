@@ -234,6 +234,11 @@ async function applyChange(entry, useAfter) {
 //            slots:[{ before, after }], exceptions:[{ before, after }], students:[{ before, after }],
 //            settings:[{ key, before, after }], months:[{ ym, before, after }](仮の月か)}
 // 書き込みに失敗したときは記録しない(エラーはそのまま呼んだ側に伝える)
+// 予定・設定が変わったときに知らせる先(カレンダーの同期などで使う)
+const changeListeners = [];
+export function onDataChanged(fn) { changeListeners.push(fn); }
+function notifyChanged() { for (const fn of changeListeners) { try { fn(); } catch { /* 知らせる先の失敗は無視 */ } } }
+
 async function commit(change) {
   const entry = {
     label: change.label, lessons: change.lessons || [], notes: change.notes || [],
@@ -245,6 +250,7 @@ async function commit(change) {
   undoStack.push(entry);
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
   redoStack.length = 0;
+  notifyChanged();
 }
 
 export function canUndo() { return undoStack.length > 0; }
@@ -256,6 +262,7 @@ export async function undo() {
   if (!entry) return null;
   await applyChange(entry, false);
   redoStack.push(undoStack.pop());
+  notifyChanged();
   return entry.label;
 }
 
@@ -265,6 +272,7 @@ export async function redo() {
   if (!entry) return null;
   await applyChange(entry, true);
   undoStack.push(redoStack.pop());
+  notifyChanged();
   return entry.label;
 }
 
@@ -1298,4 +1306,23 @@ export async function getAllAnnualProgress(date = localToday()) {
     out.push({ name, plan, progress: await getAnnualProgress(name, plan, date) });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+}
+
+// ---- カレンダーの同期(汎用版で追加。js/calendar-sync.js)----
+// 期間の予定(固定枠から入る予定も含む。ゴミ箱のものは除く)
+export async function getLessonsInRange(from, to) {
+  const [lessons, occurrences] = await Promise.all([db.listLessons(from, to), getOccurrences(from, to)]);
+  return lessons.concat(occurrences);
+}
+export const DEFAULT_CALENDAR_SYNC = {
+  enabled: false, token: '', targets: ['phone'], statuses: 'confirmed', alarm: 0, showNames: true, includePrivate: false,
+};
+export async function getCalendarSync() {
+  return { ...DEFAULT_CALENDAR_SYNC, ...((await db.getSetting('calendarSync')) || {}) };
+}
+// 同期の設定は「戻す」の対象にしない(カレンダー側の URL が変わってしまうため)
+export async function saveCalendarSync(patch) {
+  const next = { ...(await getCalendarSync()), ...patch };
+  await db.setSetting('calendarSync', next);
+  return next;
 }

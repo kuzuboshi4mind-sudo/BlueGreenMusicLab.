@@ -1,5 +1,6 @@
 -- =========================================================
--- レッスンスケジュール:データベースの表と安全の設定
+-- レッスン帳(汎用版):データベースの表と安全の設定
+-- 1つのプロジェクトに複数の講師が登録する。どの表も RLS で「その講師の行だけ」に分かれる
 -- Supabase の「SQL Editor」に全部貼り付けて「Run」を1回押す。
 -- 何度実行しても壊れないように書いてある(すでにあるものは作り直さない)。
 -- =========================================================
@@ -91,12 +92,22 @@ create table if not exists public.students (
   updated_at  timestamptz not null default now()
 );
 
+-- ---------- カレンダーの同期(汎用版で追加)----------
+-- アプリが作った .ics(カレンダーの共通の形式)を置いておく。
+-- Edge Function「calendar-feed」が token(推測できない鍵)で探して、カレンダーアプリに配る
+create table if not exists public.calendar_feeds (
+  user_id     uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  token       text not null unique check (length(token) >= 32),
+  ics         text not null default '',
+  updated_at  timestamptz not null default now()
+);
+
 -- ---------- 安全の設定:RLS と許可 ----------
 do $$
 declare t text;
 begin
   foreach t in array array['lessons', 'day_notes', 'user_settings', 'months',
-                           'recurring_slots', 'recurring_exceptions', 'students']
+                           'recurring_slots', 'recurring_exceptions', 'students', 'calendar_feeds']
   loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "own rows" on public.%I', t);

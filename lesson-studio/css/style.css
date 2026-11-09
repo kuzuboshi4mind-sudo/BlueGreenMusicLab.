@@ -1009,6 +1009,11 @@ body.month-tentative .calendar-scroll { border-top: 4px dashed var(--tentative);
   .month-nav { gap: 6px; flex-wrap: nowrap; }
   .month-nav .btn { min-height: 40px; min-width: 40px; padding: 0 10px; font-size: 0.95rem; }
   .btn-label { display: none; }   /* 「前月」「次月」「生徒」「設定」の文字をかくして、印だけにする */
+  /* ボタンの文字は折り返さない。入りきらないときは横にスクロール(数字の印が切れないよう上に余白) */
+  .month-nav { overflow-x: auto; scrollbar-width: none; padding-top: 8px; margin-top: -8px; padding-right: 8px; }
+  .month-nav::-webkit-scrollbar { display: none; }
+  .month-nav .btn { white-space: nowrap; flex: none; }
+  .month-nav .fees-btn { padding: 0 8px; font-size: 0.85rem; }
   /* 色と状態の見本は1行にして、横にスクロール */
   .legends { flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding-bottom: 2px; scrollbar-width: none; }
   .legends::-webkit-scrollbar { display: none; }
@@ -1517,3 +1522,20 @@ body.offline .calendar-scroll { border-top: 4px solid var(--tentative); }
   .pace.behind { background: #3d2814; color: #f3b27a; }
   .annual-warn { color: #f3b27a; }
 }
+
+/* ログイン画面:新規登録・パスワードの再設定 */
+.login-lead { font-size: 14px; color: var(--muted); text-align: left; margin: 0 0 12px; }
+.login-terms { display: flex; gap: 8px; align-items: flex-start; text-align: left; font-size: 13px; margin: 0 0 12px; }
+.login-terms input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.form-info { color: var(--accent); font-size: 14px; text-align: left; margin: 0 0 8px; }
+.form-info:empty { display: none; }
+.login-links { display: grid; gap: 4px; margin-top: 14px; }
+.link-btn { background: none; border: 0; color: var(--accent); font: inherit; font-size: 14px; padding: 6px; cursor: pointer; text-decoration: underline; }
+.login-card .login-terms input { width: 18px; min-height: 0; height: 18px; padding: 0; }
+.fees-btn { font-weight: 700; }
+.choice-list { display: grid; gap: 6px; margin-bottom: 10px; }
+.cal-box { border: 1px dashed var(--line-strong); border-radius: 12px; padding: 10px 12px; margin: 6px 0 10px; }
+
+.choice-list .toggle { white-space: normal; align-items: flex-start; min-height: 0; padding: 6px 0; line-height: 1.45; }
+.choice-list .toggle input { flex: none; margin-top: 1px; }
+.login-terms input { accent-color: var(--accent); }

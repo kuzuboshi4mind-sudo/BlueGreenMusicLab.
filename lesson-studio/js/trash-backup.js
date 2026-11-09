@@ -3,7 +3,7 @@
 // ・バックアップ:この月/全部の予定をファイル(.json)に書き出す。書き出したファイルを読み込んで元に戻す
 import * as store from './store.js';
 import { escapeHtml } from './calendar.js';
-import { buildXlsx } from './export-xlsx.js';
+import { buildXlsx, buildCsv } from './export-xlsx.js';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -24,6 +24,10 @@ const lastBackup = document.getElementById('last-backup');
 let pendingFile = null;   // 書き出し用に作ったファイル(共有ボタンで使う)
 let onSaved = () => {};   // 保存したあとにすること(バックアップなら書き出した日を記録)
 
+// claude.ai のお試しページで開いたときは、そのページの保存のしくみを使う(ふだんのブラウザでは使わない)
+let pageDownloads = null;
+try { window.claude?.use?.('downloads').then(d => { pageDownloads = d; }).catch(() => {}); } catch { /* なくてよい */ }
+
 export function initTrashBackup(opts) {
   ({ getMonth, onChanged } = opts);
   document.getElementById('open-trash').addEventListener('click', openTrash);
@@ -35,7 +39,18 @@ export function initTrashBackup(opts) {
   document.getElementById('xlsx-month').addEventListener('click', () => exportXlsx(true));
   document.getElementById('xlsx-year').addEventListener('click', () => exportXlsx(false));
   saveShare.addEventListener('click', shareFile);
-  saveLink.addEventListener('click', () => { onSaved(); setTimeout(() => saveDialog.close(), 300); });
+  saveLink.addEventListener('click', async e => {
+    if (pageDownloads && pendingFile) {
+      e.preventDefault();
+      try { await pageDownloads.save({ filename: pendingFile.name, data: pendingFile }); }
+      catch (err) {
+        if (err?.code !== 'declined') alert(err?.code === 'rejected_extension' ? 'この画面ではこの形式のファイルは保存できません' : '保存できませんでした');
+        return;
+      }
+    }
+    onSaved();
+    setTimeout(() => saveDialog.close(), 300);
+  });
   for (const d of [trashDialog, saveDialog]) {
     d.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => d.close()));
   }
@@ -204,7 +219,7 @@ async function exportBackup(thisMonthOnly) {
 }
 
 // できたファイルを保存する画面を出す(「ファイルを保存」と、使える端末では「共有…」)
-function offerFile(file, title, description, saved = () => {}) {
+export function offerFile(file, title, description, saved = () => {}) {
   pendingFile = file;
   onSaved = saved;
   if (saveLink.href.startsWith('blob:')) URL.revokeObjectURL(saveLink.href);
@@ -229,6 +244,31 @@ document.getElementById('open-settings').addEventListener('click', async () => {
     <span class="slot-swatch" style="background:${t.color}"></span>${escapeHtml(t.name)}</label>`).join('');
 });
 
+// 開くアプリごとの案内
+const APP_NAMES = { excel: 'Excel', numbers: 'Numbers', sheets: 'Google スプレッドシート' };
+const APP_HELP = {
+  excel: {
+    xlsx: 'Excel(Windows・Mac・iPad・iPhone)でそのまま開けます。色つきの月ごとの表のほか「予定の一覧」「月謝」のシートが入っています。',
+    csv: 'Excel でそのまま開けます(文字化けしない形にしてあります)。',
+  },
+  numbers: {
+    xlsx: '保存したファイルを「ファイル」アプリでタップすると Numbers で開きます。月ごとの表のほか「予定の一覧」「月謝」のシートが入っています。',
+    csv: '保存したファイルを「ファイル」アプリでタップすると Numbers で開きます。',
+  },
+  sheets: {
+    xlsx: 'Google ドライブ(drive.google.com)にアップロードして開くと、Google スプレッドシートで表示されます(「アプリで開く → Google スプレッドシート」)。色・シートもそのまま入ります。',
+    csv: 'Google スプレッドシートの「ファイル → インポート → アップロード」で読み込めます。Google ドライブにアップロードして開くこともできます。',
+  },
+};
+function updateExportHelp() {
+  const app = document.getElementById('export-app').value;
+  const format = document.getElementById('export-format').value;
+  document.getElementById('export-help').textContent = APP_HELP[app][format];
+}
+document.getElementById('export-app').addEventListener('change', updateExportHelp);
+document.getElementById('export-format').addEventListener('change', updateExportHelp);
+updateExportHelp();
+
 async function exportXlsx(thisMonthOnly) {
   const m = getMonth();
   const months = thisMonthOnly ? [m] : Array.from({ length: 12 }, (_, i) => ({ year: m.year, month: i + 1 }));
@@ -239,17 +279,19 @@ async function exportXlsx(thisMonthOnly) {
   const narrowed = boxes.length > 0 && checked.length < boxes.length;
   const onlyTypes = narrowed ? checked : null;
   const suffix = narrowed ? '-part' : '';
+  const format = document.getElementById('export-format').value;
+  const app = document.getElementById('export-app').value;
   const name = thisMonthOnly
-    ? `lesson-${m.year}-${String(m.month).padStart(2, '0')}${suffix}.xlsx`
-    : `lesson-${m.year}${suffix}.xlsx`;
+    ? `lesson-${m.year}-${String(m.month).padStart(2, '0')}${suffix}.${format}`
+    : `lesson-${m.year}${suffix}.${format}`;
   const btn = document.getElementById(thisMonthOnly ? 'xlsx-month' : 'xlsx-year');
   const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = '作っています…';
   try {
-    const file = await buildXlsx(months, name, onlyTypes);
-    offerFile(file, 'Excel 形式のファイルを保存',
-      `${name}(${thisMonthOnly ? `${m.month}月` : `${m.year}年1〜12月`}${narrowed ? '・選んだ種類だけ' : ''})。Numbers・Excel・Google スプレッドシートで開けます。`);
+    const file = format === 'csv' ? await buildCsv(months, name, onlyTypes) : await buildXlsx(months, name, onlyTypes);
+    offerFile(file, `${APP_NAMES[app]}用のファイルを保存`,
+      `${name}(${thisMonthOnly ? `${m.month}月` : `${m.year}年1〜12月`}${narrowed ? '・選んだ種類だけ' : ''})。${APP_HELP[app][format]}`);
   } catch (err) {
     alert(`書き出せませんでした(${err.message})`);
   } finally {

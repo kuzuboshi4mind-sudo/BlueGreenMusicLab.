@@ -24,16 +24,31 @@
     <form id="login-form" class="login-card">
       <img src="icons/icon.svg" alt="" class="login-icon" width="88" height="88">
       <h1>レッスン帳</h1>
-      <label class="field">
+      <p id="login-lead" class="login-lead"></p>
+      <label class="field" id="login-email-field">
         <span class="field-label">メールアドレス</span>
-        <input type="email" id="login-email" autocomplete="username" autocapitalize="off" required>
+        <input type="email" id="login-email" autocomplete="username" autocapitalize="off">
       </label>
-      <label class="field">
-        <span class="field-label">パスワード</span>
-        <input type="password" id="login-password" autocomplete="current-password" required>
+      <label class="field" id="login-password-field">
+        <span class="field-label" id="login-password-label">パスワード</span>
+        <input type="password" id="login-password" autocomplete="current-password">
       </label>
+      <label class="field" id="login-password2-field" hidden>
+        <span class="field-label">パスワード(もう一度)</span>
+        <input type="password" id="login-password2" autocomplete="new-password">
+      </label>
+      <label class="login-terms" id="login-terms-field" hidden>
+        <input type="checkbox" id="login-terms">
+        <span>利用規約とプライバシーポリシーに同意します(月額制。はじめの期間は無料でお試しできます)</span>
+      </label>
+      <p id="login-info" class="form-info" role="status"></p>
       <p id="login-error" class="form-error" role="alert"></p>
       <button type="submit" class="btn btn-primary login-submit">ログイン</button>
+      <div class="login-links">
+        <button type="button" class="link-btn" data-mode="signup">はじめての方:新規登録</button>
+        <button type="button" class="link-btn" data-mode="reset">パスワードを忘れたとき</button>
+        <button type="button" class="link-btn" data-mode="login" hidden>ログインに戻る</button>
+      </div>
     </form>
   </div>
 
@@ -56,7 +71,7 @@
       <!-- 1日表示のときだけ:その日の生徒全員のメモ -->
       <button type="button" id="day-memos" class="btn" aria-label="この日の生徒メモ" hidden>📝<span class="btn-label"> メモ</span></button>
       <button type="button" id="zoom-fit" class="btn zoom-btn" aria-pressed="false" title="2本指でつまむ・広げるでも拡大・縮小できます">1か月表示</button>
-      <button type="button" id="open-fees" class="btn" aria-label="月謝">💴<span class="btn-label"> 月謝</span><span id="fees-badge" class="count-badge" hidden></span></button>
+      <button type="button" id="open-fees" class="btn fees-btn">月謝管理<span id="fees-badge" class="count-badge" hidden></span></button>
       <button type="button" id="open-students" class="btn" aria-label="生徒メモ">👤<span class="btn-label"> 生徒</span><span id="students-badge" class="count-badge" hidden></span></button>
       <button type="button" id="open-settings" class="btn" aria-label="設定">⚙<span class="btn-label"> 設定</span></button>
     </nav>
@@ -250,6 +265,49 @@
     </section>
 
     <section class="settings-section">
+      <h3>カレンダーと同期</h3>
+      <p class="sheet-note">レッスンの予定を、スマホのカレンダーや Google カレンダーに出します(このアプリ → カレンダーの一方向。カレンダー側で直しても、このアプリには戻りません)。</p>
+      <div class="field">
+        <span class="field-label">同期する先(選べます)</span>
+        <div class="choice-list">
+          <label class="toggle"><input type="checkbox" id="cal-target-phone"><span>スマホのカレンダー(iPhone・iPad・Mac の「カレンダー」)</span></label>
+          <label class="toggle"><input type="checkbox" id="cal-target-google"><span>Google カレンダー(Android のカレンダーも)</span></label>
+        </div>
+      </div>
+      <div class="two-fields">
+        <label class="field"><span class="field-label">入れる予定</span>
+          <select id="cal-statuses"><option value="confirmed">確約だけ</option><option value="all">確約と仮(仮は「(仮)」と付く)</option></select></label>
+        <label class="field"><span class="field-label">通知</span>
+          <select id="cal-alarm"><option value="0">なし</option><option value="10">10分前</option><option value="30">30分前</option><option value="60">1時間前</option></select></label>
+      </div>
+      <div class="choice-list">
+        <label class="toggle"><input type="checkbox" id="cal-names"><span>生徒の名前を出す(オフにすると「レッスン」とだけ出ます。家族とカレンダーを共有しているとき用)</span></label>
+        <label class="toggle"><input type="checkbox" id="cal-private"><span>自分の予定(なし・集計しない種類)も入れる</span></label>
+      </div>
+      <!-- クラウド保存のとき:自動で新しくなる購読用の URL -->
+      <div id="cal-cloud" class="cal-box">
+        <p id="cal-status" class="sheet-note"></p>
+        <button type="button" id="cal-start" class="btn btn-primary">同期をはじめる</button>
+        <div id="cal-on" hidden>
+          <p id="cal-none" class="sheet-note">上の「同期する先」を選ぶと、追加するボタンが出ます。</p>
+          <div class="button-row">
+            <a id="cal-add-phone" class="btn btn-primary">スマホのカレンダーに追加</a>
+            <a id="cal-add-google" class="btn btn-primary" target="_blank" rel="noopener">Google カレンダーに追加</a>
+          </div>
+          <p id="cal-help-phone" class="sheet-note">iPhone・iPad:ボタンを押して「照会」→「追加」。新しくなる間隔は「設定」→「カレンダー」→「アカウント」→「データの取得方法」で変えられます(Android の方は Google カレンダーを選んでください)。</p>
+          <p id="cal-help-google" class="sheet-note">Google カレンダー:パソコンかスマホのブラウザで開き「追加」。Google 側の取り込みは数時間〜1日おきです(すぐには変わりません)。追加すると Android のカレンダーにも出ます。</p>
+          <div class="button-row">
+            <button type="button" id="cal-copy" class="btn">URL をコピー</button>
+            <button type="button" id="cal-renew" class="btn">URL を作り直す</button>
+            <button type="button" id="cal-stop" class="btn btn-danger">同期を止める</button>
+          </div>
+        </div>
+      </div>
+      <p id="cal-cloud-off" class="sheet-note">自動で新しくなる同期は、クラウド保存(ログイン)で使えます。今は下のボタンで、ファイルを1回だけ取り込めます。</p>
+      <button type="button" id="cal-ics" class="btn">.ics ファイルを書き出す(1回だけ取り込む)</button>
+    </section>
+
+    <section class="settings-section">
       <h3>ゴミ箱</h3>
       <p class="sheet-note">削除した予定は、30日間ゴミ箱に残ります。そのあいだは元に戻せます。</p>
       <button type="button" id="open-trash" class="btn">🗑 ゴミ箱を開く</button>
@@ -274,15 +332,29 @@
     </section>
 
     <section class="settings-section">
-      <h3>Excel 形式で書き出す</h3>
-      <p class="sheet-note">表を Excel 形式(.xlsx)のファイルにします。Numbers・Excel・Google スプレッドシートで開くと、色つきの表と集計・生徒の一覧が出ます。月ごとに1枚のシートになります。スクールに提出する分だけを出すときは、種類のチェックをしぼってください(日ごとのメモとマスの色は出しません)。</p>
+      <h3>表計算アプリに書き出す(Excel・Numbers・Google スプレッドシート)</h3>
+      <p class="sheet-note">予定を表計算のファイルにします。スクールに出す分だけにするときは、種類のチェックをしぼってください(日ごとのメモとマスの色は出しません)。</p>
+      <div class="two-fields">
+        <label class="field"><span class="field-label">開くアプリ</span>
+          <select id="export-app">
+            <option value="excel">Excel</option>
+            <option value="numbers">Numbers(iPhone・iPad・Mac)</option>
+            <option value="sheets">Google スプレッドシート</option>
+          </select></label>
+        <label class="field"><span class="field-label">形式</span>
+          <select id="export-format">
+            <option value="xlsx">色つきの表(.xlsx)</option>
+            <option value="csv">予定の一覧(.csv)</option>
+          </select></label>
+      </div>
+      <p id="export-help" class="sheet-note export-help"></p>
       <div class="field">
         <span class="field-label">書き出す種類</span>
         <div id="xlsx-types" class="xlsx-types"></div>
       </div>
       <div class="button-row">
-        <button type="button" id="xlsx-month" class="btn">表示中の月</button>
-        <button type="button" id="xlsx-year" class="btn">この年の1〜12月</button>
+        <button type="button" id="xlsx-month" class="btn">表示中の月を書き出す</button>
+        <button type="button" id="xlsx-year" class="btn">この年の1〜12月を書き出す</button>
       </div>
     </section>
 
@@ -359,7 +431,7 @@
   <!-- 月謝と年間回数(汎用版で追加。js/fees.js) -->
   <dialog id="fees-dialog" class="sheet">
     <div class="sheet-head">
-      <h2 id="fees-title" tabindex="-1">月謝</h2>
+      <h2 id="fees-title" tabindex="-1">月謝管理</h2>
       <button type="button" class="btn btn-primary" data-close>閉じる</button>
     </div>
     <div class="fees-tabs" role="tablist">
