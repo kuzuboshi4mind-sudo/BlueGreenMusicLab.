@@ -31,6 +31,7 @@
     --ok: #1a7f45;
     --input: #f7faf9;
     --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.05);
+    --we: #eef4fa;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -48,6 +49,7 @@
       --ok: #5fd18e;
       --input: #1f2a29;
       --shadow: none;
+      --we: #16222a;
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -217,6 +219,22 @@
     font-size: 28px; line-height: 1; box-shadow: 0 4px 14px rgba(0,0,0,.25);
   }
   @media (prefers-color-scheme: dark) { .fab { color: #0e1413; } }
+  /* month grid */
+  .mwrap { overflow: auto; max-height: calc(100vh - 220px); -webkit-overflow-scrolling: touch; }
+  .mgrid { display: grid; position: relative; }
+  .mgrid .mh { position: sticky; top: 0; z-index: 4; background: var(--card); border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); text-align: center; font-size: 11px; padding: 4px 0 2px; }
+  .mgrid .mh .t { font-weight: 700; font-size: 13px; display: block; }
+  .mgrid .corner { position: sticky; left: 0; top: 0; z-index: 6; background: var(--card); border-bottom: 1px solid var(--line); }
+  .mgrid .hours { position: sticky; left: 0; z-index: 3; background: var(--card); }
+  .mgrid .mh.we, .gcol.we { background-color: var(--we); }
+  .mgrid .mh.today, .gcol.today { background-color: var(--accent-soft); }
+  .mgrid .mh.today .t { color: var(--accent); }
+  .memo { display: block; height: 15px; font-size: 10px; color: var(--accent); font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 2px; }
+  .daymemo { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 0 8px; font-weight: 700; font-size: 12px; margin-left: 6px; }
+  .daybar { display: flex; align-items: center; gap: 8px; margin: 0 2px 8px; }
+  .daybar .daysum { flex: 1; margin: 0; }
+  .plain { background: none; border: 0; padding: 0; text-align: left; color: inherit; flex: 1; min-width: 0; }
+  .judge { padding: 12px; border-radius: 10px; background: var(--soft); font-size: 14px; }
   .toast {
     position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: #222; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50;
@@ -247,16 +265,16 @@
 
 <script>
 'use strict';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const KEY = 'lessonbook-v1';
 const UIKEY = 'lessonbook-ui';
 const COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#475569'];
 const STATUS = {
   scheduled:     { label: '予定',       cls: 's-sch' },
   done:          { label: '実施済',     cls: 's-done' },
-  absent_makeup: { label: '欠席(振替)', cls: 's-mk' },
-  absent:        { label: '欠席',       cls: 's-abs' },
-  canceled:      { label: '休講・中止', cls: 's-can' },
+  absent_makeup: { label: '欠席(振替あり)', cls: 's-mk' },
+  absent:        { label: '欠席(振替なし)', cls: 's-abs' },
+  canceled:      { label: '休講(講師都合)', cls: 's-can' },
 };
 const DEFAULT_TPL = '{生徒}さん\n次回のレッスンは {日付} {時間}〜（{分}分・{場所}）です。\nよろしくお願いいたします。\n{教室} {講師}';
 
@@ -288,8 +306,9 @@ function defaults() {
     settings: {
       studioName: '', teacherName: '', weekStart: 1, dayStart: 9, dayEnd: 21,
       defaultDuration: 30, template: DEFAULT_TPL, places: ['教室', 'オンライン', '出張'],
+      makeupDeadline: 3,
     },
-    students: [], lessons: [], payments: {},
+    students: [], lessons: [], payments: {}, dayNotes: {},
   };
 }
 function load() {
@@ -307,6 +326,7 @@ function normalize(raw) {
     students: Array.isArray(raw.students) ? raw.students : [],
     lessons: Array.isArray(raw.lessons) ? raw.lessons : [],
     payments: raw.payments && typeof raw.payments === 'object' ? raw.payments : {},
+    dayNotes: raw.dayNotes && typeof raw.dayNotes === 'object' ? raw.dayNotes : {},
   };
 }
 let S = load();
@@ -327,11 +347,16 @@ const byTime = (a, b) => (a.date + a.start).localeCompare(b.date + b.start);
 const lessonsOn = k => S.lessons.filter(l => l.date === k).sort(byTime);
 const isActiveLesson = l => l.status !== 'canceled';
 
-// 振替が必要（欠席・振替あり）で、まだ振替レッスンが組まれていないもの
+// 振替の対象：期限内に連絡のあった欠席と、講師都合の休講（返金にしたものを除く）
+const creditStatus = st => st === 'absent_makeup' || st === 'canceled';
+const creditLabel = l => `${fmtDate(l.date)} ${l.start} の${l.status === 'canceled' ? '休講' : '欠席'}分`;
 function pendingMakeups(studentId) {
   const used = new Set(S.lessons.filter(l => l.makeupOf && l.status !== 'canceled').map(l => l.makeupOf));
-  return S.lessons.filter(l => l.studentId === studentId && l.status === 'absent_makeup' && !used.has(l.id)).sort(byTime);
+  return S.lessons.filter(l => l.studentId === studentId && creditStatus(l.status) && !l.refund && !used.has(l.id)).sort(byTime);
 }
+// 月謝の生徒の「1回あたり」の金額（講師都合で振替できなかった回の返金額）
+const refundAmount = s => s && s.feeType === 'monthly' ? Math.round((Number(s.fee) || 0) / (Number(s.monthlyCount) || 4)) : 0;
+const monthDays = k => { const d = parseKey(k); const n = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return Array.from({ length: n }, (_, i) => keyOf(new Date(d.getFullYear(), d.getMonth(), i + 1))); };
 function makeupFor(lessonId) {
   return S.lessons.find(l => l.makeupOf === lessonId && l.status !== 'canceled');
 }
@@ -397,22 +422,25 @@ function render() {
   else if (ui.tab === 'students') m.innerHTML = renderStudents();
   else if (ui.tab === 'fees') m.innerHTML = renderFees();
   else m.innerHTML = renderSettings();
-  if (ui.tab === 'schedule' && ui.view === 'week') scrollGridToNow();
+  if (ui.tab === 'schedule' && ui.view !== 'day') scrollGridToNow();
 }
 
 function renderSchedule() {
   const ws = weekStartKey(ui.date);
   const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
   const d0 = parseKey(days[0]), d6 = parseKey(days[6]);
-  const label = d0.getMonth() === d6.getMonth()
+  const dm = parseKey(ui.date);
+  const label = ui.view === 'month' ? `${dm.getFullYear()}年${dm.getMonth() + 1}月`
+    : d0.getMonth() === d6.getMonth()
     ? `${d0.getFullYear()}年${d0.getMonth() + 1}月`
     : `${d0.getMonth() + 1}月〜${d6.getMonth() + 1}月`;
+  const unit = ui.view === 'month' ? '月' : '週';
   const today = todayKey();
   let h = `<div class="toolbar">
-    <button class="ibtn" data-act="week" data-n="-1" aria-label="前の週">‹</button>
+    <button class="ibtn" data-act="week" data-n="-1" aria-label="前の${unit}">‹</button>
     <div class="title">${label}</div>
-    <button class="ibtn" data-act="week" data-n="1" aria-label="次の週">›</button>
-    <div class="seg"><button data-act="view" data-v="day" class="${ui.view === 'day' ? 'on' : ''}">日</button><button data-act="view" data-v="week" class="${ui.view === 'week' ? 'on' : ''}">週</button></div>
+    <button class="ibtn" data-act="week" data-n="1" aria-label="次の${unit}">›</button>
+    <div class="seg">${[['day', '日'], ['week', '週'], ['month', '月']].map(([v, t]) => `<button data-act="view" data-v="${v}" class="${ui.view === v ? 'on' : ''}">${t}</button>`).join('')}</div>
   </div>`;
   if (ui.view === 'day') {
     h += '<div class="strip">' + days.map(k => {
@@ -424,14 +452,17 @@ function renderSchedule() {
     const list = lessonsOn(ui.date);
     const act = list.filter(isActiveLesson);
     const mins = act.reduce((a, l) => a + l.duration, 0);
-    h += `<div class="daysum">${fmtDateLong(ui.date)}${act.length ? `　${act.length}件・計${Math.floor(mins / 60) ? Math.floor(mins / 60) + '時間' : ''}${mins % 60 ? (mins % 60) + '分' : ''}` : ''}</div>`;
+    h += `<div class="daybar"><div class="daysum">${fmtDateLong(ui.date)}${S.dayNotes[ui.date] ? `<span class="daymemo">${esc(S.dayNotes[ui.date])}</span>` : ''}${act.length ? `<br>${act.length}件・計${Math.floor(mins / 60) ? Math.floor(mins / 60) + '時間' : ''}${mins % 60 ? (mins % 60) + '分' : ''}` : ''}</div>
+      <button class="btn sub" style="width:auto;padding:6px 12px;font-size:12px" data-act="daymemo" data-d="${ui.date}">メモ・休講</button></div>`;
     if (!list.length) {
       h += `<div class="card empty"><b>レッスンの予定はありません</b>${S.students.length ? '右下の ＋ から追加できます' : 'まずは「生徒」タブで生徒を登録しましょう'}</div>`;
     } else {
       h += '<div class="card">' + list.map(lessonRow).join('') + '</div>';
     }
-  } else {
+  } else if (ui.view === 'week') {
     h += renderWeekGrid(days);
+  } else {
+    h += renderMonthGrid(monthDays(ui.date));
   }
   return h;
 }
@@ -448,53 +479,75 @@ function lessonRow(l) {
 }
 
 const HOUR_PX = 52;
-function renderWeekGrid(days) {
-  const today = todayKey();
-  const weekLessons = S.lessons.filter(l => days.includes(l.date));
+function gridRange(lessons) {
   let startH = S.settings.dayStart, endH = S.settings.dayEnd;
-  weekLessons.forEach(l => {
+  lessons.forEach(l => {
     startH = Math.min(startH, Math.floor(toMin(l.start) / 60));
     endH = Math.max(endH, Math.ceil((toMin(l.start) + l.duration) / 60));
   });
-  endH = Math.min(Math.max(endH, startH + 1), 24);
-  const height = (endH - startH) * HOUR_PX;
-  const lineBg = `background-image:repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px ${HOUR_PX}px)`;
+  return [startH, Math.min(Math.max(endH, startH + 1), 24)];
+}
+const lineBg = `background-image:repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px ${HOUR_PX}px)`;
+function hoursCol(startH, endH) {
+  return '<div class="hours">' + Array.from({ length: endH - startH }, (_, i) => `<div style="height:${HOUR_PX}px">${i ? startH + i : ''}</div>`).join('') + '</div>';
+}
+function dayColumn(k, list, startH, endH) {
+  const today = todayKey();
+  const lanes = [];
+  // 重なりがある予定は横に並べる
+  const placed = list.slice().sort(byTime).map(l => {
+    const s = toMin(l.start), e = s + l.duration;
+    let lane = lanes.findIndex(end => end <= s);
+    if (lane < 0) { lane = lanes.length; lanes.push(e); } else lanes[lane] = e;
+    return { l, lane, s, e };
+  });
+  placed.forEach(p => { p.n = 1 + Math.max(...placed.filter(q => q.s < p.e && p.s < q.e).map(q => q.lane)); });
+  const w0 = parseKey(k).getDay();
+  let h = `<div class="gcol ${k === today ? 'today' : ''} ${w0 === 0 || w0 === 6 ? 'we' : ''}" style="${lineBg}" data-act="slot" data-d="${k}" data-sh="${startH}">`;
+  placed.forEach(({ l, lane, s, n }) => {
+    const top = (s - startH * 60) / 60 * HOUR_PX;
+    const ht = Math.max(18, l.duration / 60 * HOUR_PX - 2);
+    const w = 100 / n;
+    h += `<button class="blk ${l.status === 'canceled' || l.status.startsWith('absent') ? 'dim' : ''}" data-act="lesson" data-id="${l.id}"
+      style="top:${top}px;height:${ht}px;left:calc(${w * lane}% + 1px);width:calc(${w}% - 2px);background:${esc(studentColor(l.studentId))}">
+      <b>${esc(studentName(l.studentId))}</b>${l.start}</button>`;
+  });
+  if (k === today) {
+    const now = new Date(), nm = now.getHours() * 60 + now.getMinutes();
+    if (nm >= startH * 60 && nm <= endH * 60) h += `<div class="nowline" style="top:${(nm - startH * 60) / 60 * HOUR_PX}px"></div>`;
+  }
+  return h + '</div>';
+}
+function renderWeekGrid(days) {
+  const today = todayKey();
+  const weekLessons = S.lessons.filter(l => days.includes(l.date));
+  const [startH, endH] = gridRange(weekLessons);
   let h = '<div class="card gridwrap"><div class="ghead"><div></div>' + days.map(k => {
     const d = parseKey(k);
-    return `<div class="${k === today ? 'today' : ''}" data-act="pickday" data-d="${k}"><span class="${wdClass(k)}">${WD[d.getDay()]}</span><span class="t">${d.getDate()}</span></div>`;
+    return `<div class="${k === today ? 'today' : ''}" data-act="pickday" data-d="${k}"><span class="${wdClass(k)}">${WD[d.getDay()]}</span><span class="t">${d.getDate()}</span><span class="memo">${esc(S.dayNotes[k] || '')}</span></div>`;
   }).join('') + '</div>';
-  h += `<div id="gscroll" style="max-height:calc(100vh - 230px);overflow-y:auto"><div class="gbody" style="height:${height}px">`;
-  h += '<div class="hours">' + Array.from({ length: endH - startH }, (_, i) => `<div style="height:${HOUR_PX}px">${i ? startH + i : ''}</div>`).join('') + '</div>';
-  const now = new Date();
-  days.forEach(k => {
-    const list = weekLessons.filter(l => l.date === k).sort(byTime);
-    // 重なりがある予定は横に並べる
-    const lanes = [];
-    const placed = list.map(l => {
-      const s = toMin(l.start), e = s + l.duration;
-      let lane = lanes.findIndex(end => end <= s);
-      if (lane < 0) { lane = lanes.length; lanes.push(e); } else lanes[lane] = e;
-      return { l, lane, s, e };
-    });
-    placed.forEach(p => {
-      p.n = 1 + Math.max(...placed.filter(q => q.s < p.e && p.s < q.e).map(q => q.lane));
-    });
-    h += `<div class="gcol ${k === today ? 'today' : ''}" style="${lineBg}" data-act="slot" data-d="${k}" data-sh="${startH}">`;
-    placed.forEach(({ l, lane, s, n }) => {
-      const top = (s - startH * 60) / 60 * HOUR_PX;
-      const ht = Math.max(18, l.duration / 60 * HOUR_PX - 2);
-      const w = 100 / n;
-      h += `<button class="blk ${l.status === 'canceled' || l.status.startsWith('absent') ? 'dim' : ''}" data-act="lesson" data-id="${l.id}"
-        style="top:${top}px;height:${ht}px;left:calc(${w * lane}% + 1px);width:calc(${w}% - 2px);background:${esc(studentColor(l.studentId))}">
-        <b>${esc(studentName(l.studentId))}</b>${l.start}</button>`;
-    });
-    if (k === today) {
-      const nm = now.getHours() * 60 + now.getMinutes();
-      if (nm >= startH * 60 && nm <= endH * 60) h += `<div class="nowline" style="top:${(nm - startH * 60) / 60 * HOUR_PX}px"></div>`;
-    }
-    h += '</div>';
-  });
+  h += `<div id="gscroll" style="max-height:calc(100vh - 230px);overflow-y:auto"><div class="gbody" style="height:${(endH - startH) * HOUR_PX}px">`;
+  h += hoursCol(startH, endH);
+  days.forEach(k => { h += dayColumn(k, weekLessons.filter(l => l.date === k), startH, endH); });
   h += '</div></div></div><p class="note" style="margin:8px 4px">空いている時間をタップすると、その日時でレッスンを追加できます。</p>';
+  return h;
+}
+const MONTH_COL = 48;
+function renderMonthGrid(days) {
+  const today = todayKey();
+  const ls = S.lessons.filter(l => days.includes(l.date));
+  const [startH, endH] = gridRange(ls);
+  const cols = `grid-template-columns:40px repeat(${days.length}, ${MONTH_COL}px);grid-template-rows:auto ${(endH - startH) * HOUR_PX}px`;
+  let h = `<div class="card mwrap" id="gscroll" data-month="1"><div class="mgrid" style="${cols}"><div class="corner"></div>`;
+  h += days.map(k => {
+    const d = parseKey(k), w = d.getDay();
+    return `<div class="mh ${k === today ? 'today' : ''} ${w === 0 || w === 6 ? 'we' : ''}" data-act="daymemo" data-d="${k}" data-today="${k === today ? 1 : ''}">
+      <span class="t">${d.getDate()}</span><span class="${wdClass(k)}">${WD[w]}</span><span class="memo">${esc(S.dayNotes[k] || '')}</span></div>`;
+  }).join('');
+  h += hoursCol(startH, endH);
+  days.forEach(k => { h += dayColumn(k, ls.filter(l => l.date === k), startH, endH); });
+  const n = ls.filter(isActiveLesson).length;
+  h += `</div></div><p class="note" style="margin:8px 4px">今月のレッスン ${n}件。日付をタップするとメモ（発表会・祝日など）や休講の設定、空いている時間をタップするとレッスンの追加ができます。</p>`;
   return h;
 }
 function scrollGridToNow() {
@@ -502,6 +555,10 @@ function scrollGridToNow() {
   const sh = Number(g.querySelector('.gcol')?.dataset.sh || 9);
   const h = new Date().getHours();
   g.scrollTop = Math.max(0, (Math.max(h - 1, sh) - sh) * HOUR_PX);
+  if (g.dataset.month) {
+    const t = g.querySelector('[data-today="1"]') || g.querySelector(`[data-d="${ui.date}"]`);
+    g.scrollLeft = t ? Math.max(0, t.offsetLeft - 40 - (g.clientWidth - 40) / 2 + MONTH_COL / 2) : 0;
+  }
 }
 
 function renderStudents() {
@@ -538,16 +595,20 @@ function feeRows(ym) {
   const inMonth = S.lessons.filter(l => monthOf(l.date) === ym);
   const ids = new Set(inMonth.map(l => l.studentId));
   S.students.forEach(s => { if (s.active !== false && s.feeType === 'monthly') ids.add(s.id); });
+  const refundsIn = S.lessons.filter(l => l.refund && l.refundMonth === ym);
+  refundsIn.forEach(l => ids.add(l.studentId));
   return [...ids].filter(id => student(id)).map(id => {
     const s = student(id);
     const ls = inMonth.filter(l => l.studentId === id);
-    // 請求対象: 休講・振替ありの欠席・振替レッスン（元の回で請求済み）を除く
-    const billable = ls.filter(l => l.status !== 'canceled' && l.status !== 'absent_makeup' && !l.makeupOf).length;
+    // 請求対象（1回ごと料金）: 休講と振替ありの欠席は数えず、その振替レッスンの回で数える
+    const billable = ls.filter(l => l.status !== 'canceled' && l.status !== 'absent_makeup').length;
     const fee = Number(s.fee) || 0;
-    const calc = s.feeType === 'monthly' ? fee : fee * billable;
+    const refunds = s.feeType === 'monthly' ? refundsIn.filter(l => l.studentId === id) : [];
+    const refund = refunds.length * refundAmount(s);
+    const calc = s.feeType === 'monthly' ? Math.max(0, fee - refund) : fee * billable;
     const p = pay[id] || {};
     const amount = p.amount != null && p.amount !== '' ? Number(p.amount) : calc;
-    return { s, count: billable, total: ls.filter(isActiveLesson).length, calc, amount, overridden: p.amount != null && p.amount !== '', paid: !!p.paid, paidDate: p.paidDate || '' };
+    return { s, ls, refunds, refund, count: billable, total: ls.filter(isActiveLesson).length, calc, amount, overridden: p.amount != null && p.amount !== '', paid: !!p.paid, paidDate: p.paidDate || '' };
   }).sort((a, b) => (a.s.kana || a.s.name).localeCompare(b.s.kana || b.s.name, 'ja'));
 }
 function renderFees() {
@@ -566,14 +627,100 @@ function renderFees() {
   if (!rows.length) return h + '<div class="card empty"><b>この月の請求対象はありません</b>生徒の料金とレッスン予定を登録すると自動で集計されます</div>';
   h += '<div class="card">' + rows.map(r => `<div class="fee">
       <span class="dot" style="background:${esc(r.s.color)}"></span>
-      <div class="body"><div class="name" style="font-weight:700">${esc(r.s.name)}</div>
-      <div class="note">${r.s.feeType === 'monthly' ? `月謝・レッスン${r.total}回` : `${yen(r.s.fee)} × ${r.count}回`}${r.overridden ? '・手入力' : ''}${r.paid && r.paidDate ? `・${fmtDate(r.paidDate)}入金` : ''}</div></div>
+      <button class="plain" data-act="feedetail" data-id="${r.s.id}"><div class="name" style="font-weight:700">${esc(r.s.name)} ›</div>
+      <div class="note">${r.s.feeType === 'monthly' ? `月謝・レッスン${r.total}回` : `${yen(r.s.fee)} × ${r.count}回`}${r.refund ? `・返金 −${yen(r.refund)}` : ''}${r.overridden ? '・手入力' : ''}${r.paid && r.paidDate ? `・${fmtDate(r.paidDate)}入金` : ''}</div></button>
       <input type="number" inputmode="numeric" data-fee="${r.s.id}" value="${r.overridden ? r.amount : ''}" placeholder="${r.calc}" aria-label="請求額">
       <button class="paid ${r.paid ? 'on' : ''}" data-act="paid" data-id="${r.s.id}">${r.paid ? '入金済 ✓' : '未入金'}</button>
     </div>`).join('') + '</div>';
-  h += `<p class="note" style="margin:8px 4px">金額欄は空欄なら自動計算（1回ごと料金 × 請求対象回数、または月謝）。休講・振替ありの欠席・振替レッスンは回数に含みません。</p>
+  h += `<p class="note" style="margin:8px 4px">金額欄は空欄なら自動計算です。1回ごと料金は「実施・予定・振替なしの欠席」の回数で計算し、休講と振替ありの欠席は振替レッスンの回で数えます。月謝は、講師都合で振替できなかった回を翌月の月謝から1回分差し引きます。名前をタップすると明細とお知らせ文を確認できます。</p>
   <div class="btns" style="margin-top:12px"><button class="btn sub" data-act="feecsv">この月をCSVで書き出す</button></div>`;
   return h;
+}
+
+function feeMessage(r) {
+  const st = S.settings;
+  const ls = r.ls.filter(l => l.status !== 'canceled' && l.status !== 'absent_makeup').sort(byTime);
+  const lines = [`${r.s.name}さん`, `${fmtMonth(ui.month)}分のレッスン料のお知らせです。`];
+  if (ls.length) lines.push(`レッスン日：${ls.map(l => fmtDate(l.date)).join('、')}（${ls.length}回）`);
+  if (r.s.feeType === 'monthly') {
+    lines.push(`月謝 ${yen(r.s.fee)}`);
+    r.refunds.forEach(l => lines.push(`返金（${fmtDate(l.date)} 休講・振替なし分）−${yen(refundAmount(r.s))}`));
+  } else lines.push(`${yen(r.s.fee)} × ${r.count}回`);
+  lines.push(`ご請求額 ${yen(r.amount)}`, '', 'よろしくお願いいたします。', [st.studioName, st.teacherName].filter(Boolean).join(' '));
+  return lines.join('\n').trim();
+}
+function feeDetail(sid) {
+  const r = feeRows(ui.month).find(x => x.s.id === sid); if (!r) return closeSheet();
+  const html = `<dl class="kv">
+      <dt>料金</dt><dd>${r.s.feeType === 'monthly' ? `月謝 ${yen(r.s.fee)}（月${Number(r.s.monthlyCount) || 4}回・1回あたり${yen(refundAmount(r.s))}）` : `1回 ${yen(r.s.fee)}`}</dd>
+      ${r.refund ? `<dt>返金</dt><dd>−${yen(r.refund)}（${r.refunds.map(l => fmtDate(l.date)).join('、')} の休講分）</dd>` : ''}
+      <dt>請求額</dt><dd><b>${yen(r.amount)}</b>${r.overridden ? '（手入力）' : ''}</dd>
+    </dl>
+    <div class="sectitle">${fmtMonth(ui.month)}のレッスン</div>
+    ${r.ls.length ? r.ls.slice().sort(byTime).map(l => `<div class="hist"><div class="h"><button class="link" data-act="lesson" data-id="${l.id}">${fmtDate(l.date)} ${l.start}</button><span class="chip ${STATUS[l.status]?.cls}">${STATUS[l.status]?.label}</span>${l.makeupOf ? '<span class="note">振替</span>' : ''}</div></div>`).join('') : '<div class="note">この月のレッスンはありません</div>'}
+    <div class="sectitle">お知らせ文</div>
+    <div class="judge" style="white-space:pre-wrap;font-size:13px">${esc(feeMessage(r))}</div>
+    <div class="btns" style="margin-top:12px"><button class="btn" data-act="copyfee" data-id="${sid}">お知らせ文をコピー</button></div>`;
+  openSheet(`${r.s.name}・${fmtMonth(ui.month)}`, html, () => feeDetail(sid));
+}
+
+function dayDialog(k) {
+  const sched = lessonsOn(k).filter(l => l.status === 'scheduled');
+  const html = `<form class="form" id="df">
+    <label>この日のメモ（例：発表会、祝日、教室お休み）<input name="memo" value="${esc(S.dayNotes[k] || '')}" maxlength="40"></label>
+    <div class="btns"><button class="btn" type="submit">メモを保存</button></div></form>
+    <div class="sectitle">この日の予定（${lessonsOn(k).length}件）</div>
+    ${lessonsOn(k).length ? `<div class="card">${lessonsOn(k).map(lessonRow).join('')}</div>` : '<div class="note">予定はありません</div>'}
+    <div class="btns" style="margin-top:12px">
+      ${S.students.length ? `<button class="btn sub" data-act="newlessonon" data-d="${k}">この日にレッスンを追加</button>` : ''}
+      ${sched.length ? `<button class="btn danger" data-act="daycancel" data-d="${k}">この日を休講にする（予定${sched.length}件）</button>` : ''}
+    </div>
+    <p class="note">台風などの警報や講師の都合で休講にすると、その日の予定はすべて「休講(講師都合)」になり、各生徒の振替待ちに追加されます。</p>`;
+  openSheet(fmtDateLong(k), html, () => dayDialog(k));
+  $('#df').onsubmit = e => {
+    e.preventDefault();
+    const v = e.target.memo.value.trim();
+    if (v) S.dayNotes[k] = v; else delete S.dayNotes[k];
+    save(); closeSheet(); toast('メモを保存しました');
+  };
+}
+
+function absenceForm(id, preset) {
+  const l = lesson(id); if (!l) return closeSheet();
+  const N = Number(S.settings.makeupDeadline);
+  const deadline = N >= 0 ? addDays(l.date, -N) : null;
+  const html = `<p style="margin:0 0 12px"><b>${esc(studentName(l.studentId))}</b>さん　${fmtDateLong(l.date)} ${l.start}〜</p>
+    <form class="form" id="af">
+      <label>欠席の連絡を受けた日<input type="date" name="contact" value="${l.contactDate || todayKey()}"></label>
+      <label style="display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:normal;color:var(--text);font-size:14px"><input type="checkbox" name="none" style="width:auto" ${l.noContact ? 'checked' : ''}>連絡なしのお休み</label>
+      <div class="judge" id="afres"></div>
+      <div class="btns"><button class="btn" type="submit" id="afok"></button><button class="btn sub" type="button" id="afalt"></button></div>
+    </form>
+    <p class="note">振替の連絡期限：${N < 0 ? '期限なし（いつでも振替できる）' : N === 0 ? 'レッスン当日まで' : `レッスンの${N}日前まで（この回は ${fmtDate(deadline)} まで）`}。期限は「設定」で変えられます。</p>`;
+  openSheet('欠席の記録', html);
+  const f = $('#af');
+  let decided;
+  const update = () => {
+    f.contact.disabled = f.none.checked;
+    const ok = !f.none.checked && (N < 0 || (!!f.contact.value && f.contact.value <= deadline));
+    decided = ok ? 'absent_makeup' : 'absent';
+    $('#afres').innerHTML = ok
+      ? '<b style="color:var(--ok)">期限内の連絡 → 振替できます</b><div class="note">振替待ちに追加され、あとで振替レッスンの日時を決められます。</div>'
+      : `<b style="color:var(--danger)">${f.none.checked ? '連絡なしのお休み' : '期限を過ぎた連絡'} → 振替なし</b><div class="note">1回分を受講済みとして扱います（1回ごと料金なら請求対象）。</div>`;
+    $('#afok').textContent = ok ? '欠席（振替あり）で記録する' : '欠席（振替なし）で記録する';
+    $('#afalt').textContent = ok ? '特例：振替なしにする' : '特例：振替ありにする';
+  };
+  const commit = st => {
+    const mk = makeupFor(l.id);
+    if (mk && !creditStatus(st)) mk.makeupOf = null;
+    l.status = st; l.noContact = f.none.checked; l.contactDate = f.none.checked ? '' : f.contact.value;
+    delete l.refund; delete l.refundMonth;
+    save(); lessonDetail(l.id);
+    toast(st === 'absent_makeup' ? '欠席を記録し、振替待ちに追加しました' : '欠席（振替なし）を記録しました');
+  };
+  f.contact.onchange = f.none.onchange = update; update();
+  f.onsubmit = e => { e.preventDefault(); commit(decided); };
+  $('#afalt').onclick = () => commit(decided === 'absent_makeup' ? 'absent' : 'absent_makeup');
 }
 
 // ---------- settings ----------
@@ -591,6 +738,8 @@ function renderSettings() {
       <label>週表示の開始<select data-set="dayStart" data-num="1">${hours(st.dayStart, 0, 22)}</select></label>
       <label>週表示の終了<select data-set="dayEnd" data-num="1">${hours(st.dayEnd, 1, 24)}</select></label>
     </div>
+    <label>振替できる欠席連絡の期限<select data-set="makeupDeadline" data-num="1">${[[-1, '期限なし（いつでも振替）'], [0, 'レッスン当日まで'], ...[1, 2, 3, 4, 5, 7].map(n => [n, `レッスンの${n}日前まで`])].map(([v, t]) => `<option value="${v}" ${v === Number(st.makeupDeadline) ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <span class="note" style="font-weight:normal">期限を過ぎた連絡・連絡なしのお休みは「振替なし（1回受講扱い）」になります。講師都合の休講は常に振替の対象です。</span></label>
     <label>レッスン場所の候補（カンマ区切り）<input data-set="places" value="${esc(st.places.join(', '))}"></label>
     <label>連絡文テンプレート<textarea data-set="template" rows="5">${esc(st.template)}</textarea>
       <span class="note" style="font-weight:normal">使える差し込み：{生徒} {日付} {時間} {分} {場所} {教室} {講師}</span></label>
@@ -635,7 +784,7 @@ function lessonForm(l, preset = {}) {
       <label>繰り返し<select name="repeat"><option value="0">なし（1回のみ）</option><option value="1">毎週</option><option value="2">隔週</option></select></label>
       <label>回数<select name="count">${[4, 8, 12, 16, 24, 36, 48].map(n => `<option value="${n}" ${n === 12 ? 'selected' : ''}>${n}回</option>`).join('')}</select></label>
     </div>` : ''}
-    <label id="mkwrap">振替元の欠席<select name="makeupOf"></select></label>
+    <label id="mkwrap">振替元（欠席・休講）<select name="makeupOf"></select></label>
     <label>連絡メモ（任意）<input name="memo" value="${esc(v.memo || '')}" placeholder="例）発表会の曲を持参"></label>
     <div id="lfwarn" class="warn"></div>
     <div class="btns"><button class="btn" type="submit">${isNew ? '追加する' : '保存する'}</button></div>
@@ -647,7 +796,7 @@ function lessonForm(l, preset = {}) {
     const pend = pendingMakeups(sid);
     const cur = v.makeupOf && lesson(v.makeupOf);
     const list = cur && !pend.includes(cur) ? [cur, ...pend] : pend;
-    f.makeupOf.innerHTML = '<option value="">なし（通常レッスン）</option>' + list.map(p => `<option value="${p.id}" ${p.id === v.makeupOf ? 'selected' : ''}>${fmtDate(p.date)} ${p.start} の欠席分</option>`).join('');
+    f.makeupOf.innerHTML = '<option value="">なし（通常レッスン）</option>' + list.map(p => `<option value="${p.id}" ${p.id === v.makeupOf ? 'selected' : ''}>${creditLabel(p)}</option>`).join('');
     $('#mkwrap').classList.toggle('hidden', !list.length);
     if (f.repeat) f.repeat.disabled = !!f.makeupOf.value;
   };
@@ -700,7 +849,7 @@ function lessonForm(l, preset = {}) {
 function lessonDetail(id) {
   const l = lesson(id); if (!l) return closeSheet();
   const s = student(l.studentId);
-  const mk = l.status === 'absent_makeup' ? makeupFor(l.id) : null;
+  const mk = creditStatus(l.status) ? makeupFor(l.id) : null;
   const orig = l.makeupOf ? lesson(l.makeupOf) : null;
   const html = `
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
@@ -713,13 +862,15 @@ function lessonDetail(id) {
       <dt>日時</dt><dd>${fmtDateLong(l.date)}<br>${l.start}〜${endTime(l)}（${l.duration}分）</dd>
       ${l.place ? `<dt>場所</dt><dd>${esc(l.place)}</dd>` : ''}
       ${l.memo ? `<dt>連絡メモ</dt><dd>${esc(l.memo)}</dd>` : ''}
-      ${orig ? `<dt>振替</dt><dd>${fmtDate(orig.date)} ${orig.start} の欠席分の振替</dd>` : ''}
-      ${l.status === 'absent_makeup' ? `<dt>振替</dt><dd>${mk ? `${fmtDate(mk.date)} ${mk.start} に振替済み` : '<span class="warn">振替日が未定です</span>'}</dd>` : ''}
+      ${orig ? `<dt>振替</dt><dd>${creditLabel(orig)}の振替</dd>` : ''}
+      ${l.noContact ? '<dt>欠席連絡</dt><dd>連絡なし</dd>' : l.contactDate && l.status.startsWith('absent') ? `<dt>欠席連絡</dt><dd>${fmtDate(l.contactDate)} に受付</dd>` : ''}
+      ${creditStatus(l.status) ? `<dt>振替</dt><dd>${l.refund ? (s?.feeType === 'monthly' ? `振替なし（${fmtMonth(l.refundMonth)}の月謝から ${yen(refundAmount(s))} 返金）` : '振替なし（請求なし）') : mk ? `${fmtDate(mk.date)} ${mk.start} に振替済み` : '<span class="warn">振替日が未定です</span>'}</dd>` : ''}
     </dl>
     <div class="sectitle" style="margin-top:16px">状態</div>
     <div class="st">${Object.entries(STATUS).map(([k, o]) => `<button data-act="status" data-id="${l.id}" data-st="${k}" class="${l.status === k ? 'on' : ''}"><span class="chip ${o.cls}">${o.label}</span></button>`).join('')}</div>
-    <p class="note">欠席(振替)…後日振替レッスンを行う欠席。欠席…振替なしの欠席（1回ごと料金なら請求対象）。休講・中止…講師都合などで行わない回（請求対象外）。</p>
-    ${l.status === 'absent_makeup' && !mk ? `<div class="btns" style="margin-bottom:8px"><button class="btn" data-act="addmakeup" data-id="${l.id}">振替レッスンの日時を決める</button></div>` : ''}
+    <p class="note">欠席を選ぶと、連絡を受けた日から振替できるかを判定します。休講(講師都合)は振替の対象で、振替できないときは「振替しない」で返金扱いにできます。</p>
+    ${creditStatus(l.status) && !mk && !l.refund ? `<div class="btns ${l.status === 'canceled' ? 'h' : ''}" style="margin-bottom:8px"><button class="btn" data-act="addmakeup" data-id="${l.id}">振替日を決める</button>${l.status === 'canceled' ? `<button class="btn sub" data-act="refund" data-id="${l.id}">振替しない（返金）</button>` : ''}</div>` : ''}
+    ${l.refund ? `<div class="btns" style="margin-bottom:8px"><button class="btn sub" data-act="unrefund" data-id="${l.id}">返金を取り消して振替待ちに戻す</button></div>` : ''}
     <form class="form" style="margin-top:8px"><label>レッスン記録（内容・宿題など）<textarea id="lnote" placeholder="例）ブルグミュラー 18番 前半OK。次回までに後半を片手ずつ。">${esc(l.note || '')}</textarea></label></form>
     <div class="btns h" style="margin-top:12px">
       <button class="btn sub" data-act="copymsg" data-id="${l.id}">連絡文をコピー</button>
@@ -764,13 +915,13 @@ function studentSheet(id) {
         <button class="btn sub" data-act="editstudent" data-id="${s.id}">生徒情報を編集</button></div>
       <dl class="kv" style="margin-top:12px">
         ${s.instrument ? `<dt>楽器・コース</dt><dd>${esc(s.instrument)}</dd>` : ''}
-        <dt>料金</dt><dd>${s.fee ? (s.feeType === 'monthly' ? '月謝 ' : '1回 ') + yen(s.fee) : '未設定'}・標準${s.duration}分</dd>
+        <dt>料金</dt><dd>${s.fee ? (s.feeType === 'monthly' ? `月謝 ${yen(s.fee)}（月${Number(s.monthlyCount) || 4}回）` : '1回 ' + yen(s.fee)) : '未設定'}・標準${s.duration}分</dd>
         ${s.guardian ? `<dt>保護者</dt><dd>${esc(s.guardian)}</dd>` : ''}
         ${s.contact ? `<dt>連絡先</dt><dd>${esc(s.contact)}</dd>` : ''}
         ${s.memo ? `<dt>メモ</dt><dd style="white-space:pre-wrap">${esc(s.memo)}</dd>` : ''}
         ${s.active === false ? '<dt>状態</dt><dd>休会・退会</dd>' : ''}
       </dl>
-      ${pend.length ? `<div class="sectitle">振替待ち（${pend.length}件）</div>` + pend.map(p => `<div class="hist"><div class="h"><span style="flex:1">${fmtDate(p.date)} ${p.start} の欠席</span><button class="link" data-act="addmakeup" data-id="${p.id}">振替日を決める ›</button></div></div>`).join('') : ''}
+      ${pend.length ? `<div class="sectitle">振替待ち（${pend.length}件）</div>` + pend.map(p => `<div class="hist"><div class="h"><span style="flex:1">${creditLabel(p)}</span><button class="link" data-act="addmakeup" data-id="${p.id}">振替日を決める ›</button></div></div>`).join('') : ''}
       <div class="sectitle">今後の予定</div>
       ${upcoming.length ? upcoming.map(l => `<div class="hist"><div class="h"><button class="link" data-act="lesson" data-id="${l.id}">${fmtDate(l.date)} ${l.start}〜</button><span class="note">${l.duration}分${l.place ? '・' + esc(l.place) : ''}</span></div></div>`).join('') : '<div class="note">予定はありません</div>'}
       <div class="sectitle">レッスン記録</div>
@@ -792,6 +943,7 @@ function studentForm(v, isNew) {
       <label>料金の区分<select name="feeType"><option value="monthly" ${v.feeType === 'monthly' ? 'selected' : ''}>月謝（月額）</option><option value="per" ${v.feeType === 'per' ? 'selected' : ''}>1回ごと</option></select></label>
       <label>金額（円）<input name="fee" type="number" inputmode="numeric" min="0" value="${esc(v.fee)}" placeholder="8000"></label>
     </div>
+    <label id="mcwrap">月のレッスン回数（休講返金の1回あたり金額に使います）<select name="monthlyCount">${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === (Number(v.monthlyCount) || 4) ? 'selected' : ''}>月${n}回</option>`).join('')}</select></label>
     <div class="two">
       <label>標準レッスン時間<select name="duration">${[15, 20, 30, 40, 45, 50, 60, 75, 90, 120].map(n => `<option value="${n}" ${n === Number(v.duration) ? 'selected' : ''}>${n}分</option>`).join('')}</select></label>
       <label>主な場所<input name="place" list="places2" value="${esc(v.place || '')}"><datalist id="places2">${S.settings.places.map(p => `<option value="${esc(p)}">`).join('')}</datalist></label>
@@ -806,6 +958,8 @@ function studentForm(v, isNew) {
   openSheet(isNew ? '生徒を追加' : '生徒情報を編集', html);
   const f = $('#sf');
   let color = v.color;
+  const syncFee = () => $('#mcwrap').classList.toggle('hidden', f.feeType.value !== 'monthly');
+  f.feeType.onchange = syncFee; syncFee();
   f.querySelectorAll('[data-color]').forEach(b => b.onclick = () => {
     color = b.dataset.color; f.querySelectorAll('[data-color]').forEach(x => x.classList.toggle('on', x === b));
   });
@@ -813,7 +967,7 @@ function studentForm(v, isNew) {
     e.preventDefault();
     const data = {
       name: f.name.value.trim(), kana: f.kana.value.trim(), instrument: f.instrument.value.trim(), color,
-      feeType: f.feeType.value, fee: f.fee.value === '' ? '' : Number(f.fee.value), duration: Number(f.duration.value),
+      feeType: f.feeType.value, fee: f.fee.value === '' ? '' : Number(f.fee.value), monthlyCount: Number(f.monthlyCount.value), duration: Number(f.duration.value),
       place: f.place.value.trim(), guardian: f.guardian.value.trim(), contact: f.contact.value.trim(), memo: f.memo.value.trim(),
       active: f.active.value === '1',
     };
@@ -901,7 +1055,33 @@ document.addEventListener('click', async e => {
   switch (el.dataset.act) {
     case 'close': closeSheet(); break;
     case 'today': ui.date = todayKey(); ui.month = monthOf(ui.date); if (ui.tab !== 'fees') ui.tab = 'schedule'; render(); break;
-    case 'week': ui.date = addDays(ui.date, 7 * Number(el.dataset.n)); render(); break;
+    case 'week':
+      if (ui.view === 'month') {
+        const d = parseKey(ui.date), nd = keyOf(new Date(d.getFullYear(), d.getMonth() + Number(el.dataset.n), 1));
+        ui.date = monthOf(nd) === monthOf(todayKey()) ? todayKey() : nd;
+      } else ui.date = addDays(ui.date, 7 * Number(el.dataset.n));
+      render(); break;
+    case 'daymemo': dayDialog(el.dataset.d); break;
+    case 'newlessonon': lessonForm(null, { date: el.dataset.d }); break;
+    case 'daycancel': {
+      const k = el.dataset.d, list = lessonsOn(k).filter(l => l.status === 'scheduled');
+      if (!await ask(`${fmtDate(k)} の予定${list.length}件を「休講(講師都合)」にします。各生徒の振替待ちに追加されます。`, '休講にする', true)) break;
+      list.forEach(l => { l.status = 'canceled'; });
+      if (!S.dayNotes[k]) S.dayNotes[k] = '休講';
+      save(); closeSheet(); toast(`${list.length}件を休講にしました`);
+      break;
+    }
+    case 'feedetail': feeDetail(id); break;
+    case 'copyfee': { const r = feeRows(ui.month).find(x => x.s.id === id); toast(r && await copyText(feeMessage(r)) ? 'お知らせ文をコピーしました' : 'コピーできませんでした'); break; }
+    case 'refund': {
+      const l = lesson(id), s = student(l.studentId);
+      const nm = addMonth(monthOf(l.date), 1);
+      const msg = s?.feeType === 'monthly' ? `振替を行わず、${fmtMonth(nm)}の月謝から1回分（${yen(refundAmount(s))}）を差し引きます。` : '振替を行わず、この回は請求しません。';
+      if (!await ask(msg, '振替しない')) break;
+      l.refund = true; l.refundMonth = nm; save(); lessonDetail(id); toast('返金扱いにしました');
+      break;
+    }
+    case 'unrefund': { const l = lesson(id); delete l.refund; delete l.refundMonth; save(); lessonDetail(id); break; }
     case 'view': ui.view = el.dataset.v; saveUi(); render(); break;
     case 'pick': ui.date = el.dataset.d; render(); break;
     case 'pickday': ui.date = el.dataset.d; ui.view = 'day'; saveUi(); render(); break;
@@ -924,12 +1104,15 @@ document.addEventListener('click', async e => {
     case 'addmakeup': { const l = lesson(id); lessonForm(null, { studentId: l.studentId, makeupOf: l.id }); break; }
     case 'status': {
       const l = lesson(id); const next = el.dataset.st;
-      if (l.status === 'absent_makeup' && next !== 'absent_makeup' && makeupFor(l.id)) {
-        if (!await ask('この欠席にはすでに振替レッスンが組まれています。状態を変更すると、振替レッスンは通常のレッスン扱いになります。', '変更する')) break;
+      if (next === 'absent_makeup' || next === 'absent') { absenceForm(id, next); break; }
+      if (creditStatus(l.status) && !creditStatus(next) && makeupFor(l.id)) {
+        if (!await ask('この回にはすでに振替レッスンが組まれています。状態を変更すると、振替レッスンは通常のレッスン扱いになります。', '変更する')) break;
         makeupFor(l.id).makeupOf = null;
       }
-      l.status = next; save(); lessonDetail(id);
-      if (next === 'absent_makeup' && !makeupFor(l.id)) toast('振替待ちに追加しました');
+      l.status = next; delete l.contactDate; delete l.noContact;
+      if (next !== 'canceled') { delete l.refund; delete l.refundMonth; }
+      save(); lessonDetail(id);
+      if (next === 'canceled' && !makeupFor(l.id)) toast('休講にして振替待ちに追加しました');
       break;
     }
     case 'copymsg': toast(await copyText(lessonMessage(lesson(id))) ? '連絡文をコピーしました' : 'コピーできませんでした'); break;
