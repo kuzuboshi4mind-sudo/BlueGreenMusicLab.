@@ -1,0 +1,17 @@
+# 動画（上から順に表示）。id は YouTube の動画ID。category で絞り込み
+- { id: "1JYO3SM-xeU", title: "Showreel", category: "Solo" }
+- { id: "zk2YJjdM5mY", title: "ガブリエルのオーボエ / Gabriel’s Oboe（猪原純 × 沖恵）", category: "Solo" }
+- { id: "qZnilbPY-II", title: "1st Album『ensemble』trailer", category: "Solo" }
+- { id: "b7JyWCMwaLo", title: "花のように / 猪原純", category: "Solo" }
+- { id: "9sEyTCRG_Wg", title: "「rainy」猪原純 × 増川勝洋", category: "Solo" }
+- { id: "ddoQ4LTtCrU", title: "【風とおり道】アコギ4重奏（TAB譜無料配布中）", category: "Solo" }
+- { id: "IkfuvJIeF-M", title: "スロウダウン（Live First Take）", category: "屑星" }
+- { id: "edwTZqaG40M", title: "Music Video『からっぽ』", category: "屑星" }
+- { id: "8unTEOcO2iM", title: "Music Video『Empty』（からっぽ 英詞版）", category: "屑星" }
+- { id: "dsEWCHLOMUY", title: "夜風の交差 PV", category: "屑星" }
+- { id: "BYcwK5ZaCsM", title: "HOTLINE2009 JAPAN FINAL", category: "屑星" }
+- { id: "xwd0UoDwFFc", title: "1st Album【大衆音楽の対角線上に群生するポップソング】", category: "THE FROGS" }
+- { id: "W2zVsTHRtL0", title: "2017.2.26 福山 THE FROGS", category: "THE FROGS" }
+- { id: "T6MgaNizVfU", title: "誰も知らない（vol.9 DVDより）", category: "Feel Art Cafe" }
+- { id: "_0O2u6JLNfE", title: "vol.8 予告編", category: "Feel Art Cafe" }
+- { id: "58rA2l4BSWE", title: "この街から 〜いい音楽は、つづけられる。〜", category: "Other" }

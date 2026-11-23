@@ -41,16 +41,50 @@ content:
       - { name: price, label: 料金, type: string }
       - { name: members, label: 出演, type: string }
       - { name: ticket_url, label: 予約URL, type: string }
+      - name: project
+        label: 名義
+        type: select
+        options: { values: [Solo, 屑星, THE FROGS, Feel Art Cafe, Other] }
       - { name: body, label: 備考, type: rich-text }
 
-  - name: profile
-    label: プロフィール
+  - name: biography
+    label: Biography
     type: file
-    path: profile.md
+    path: biography/index.md
     fields:
-      - { name: title, type: string, hidden: true, default: Profile }
-      - { name: permalink, type: string, hidden: true, default: /profile/ }
-      - { name: body, label: 本文, type: rich-text }
+      - { name: title, type: string, hidden: true, default: Biography }
+      - { name: body, label: 本文, type: code }
+
+  - name: videos
+    label: 動画
+    type: file
+    path: _data/videos.yml
+    list: true
+    fields:
+      - { name: id, label: YouTube動画ID（youtu.be/の後ろ）, type: string }
+      - { name: title, label: タイトル, type: string }
+      - name: category
+        label: 名義
+        type: select
+        options: { values: [Solo, 屑星, THE FROGS, Feel Art Cafe, Other] }
+
+  - name: projects
+    label: プロジェクト
+    type: file
+    path: _data/projects.yml
+    list: true
+    fields:
+      - { name: name, label: 名前, type: string }
+      - { name: sub, label: サブタイトル, type: string }
+      - { name: image, label: 画像, type: image }
+      - { name: body, label: 紹介文, type: text }
+      - name: links
+        label: リンク
+        type: object
+        list: true
+        fields:
+          - { name: name, label: 表示名, type: string }
+          - { name: url, label: URL, type: string }
 
   - name: sns
     label: SNSリンク
@@ -59,7 +93,7 @@ content:
     list: true
     fields:
       - { name: name, label: 名前, type: string }
-      - { name: icon, label: アイコン（youtube/instagram/x/facebook/spotify/apple）, type: string }
+      - { name: icon, label: アイコン（instagram/x/youtube/facebook/line/music）, type: string }
       - { name: url, label: URL, type: string }
 
   - name: discography
@@ -69,9 +103,13 @@ content:
     list: true
     fields:
       - { name: title, label: タイトル, type: string }
+      - { name: artist, label: 名義（Solo/屑星/THE FROGS…）, type: string }
       - { name: type, label: 種別, type: string }
-      - { name: release, label: 発売日, type: date }
-      - { name: label, label: レーベル, type: string }
+      - { name: release, label: 発売日（例 2018-09-16）, type: string }
+      - { name: catalog, label: 品番, type: string }
+      - { name: price, label: 価格, type: string }
+      - { name: note, label: 紹介文, type: text }
+      - { name: youtube, label: YouTube動画ID, type: string }
       - { name: cover, label: ジャケット, type: image }
       - { name: tracks, label: 曲目, type: string, list: true }
       - name: links

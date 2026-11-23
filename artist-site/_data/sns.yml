@@ -1,19 +1,7 @@
 # SNSリンク（URLを空にすると非表示になります）
-- name: YouTube
-  icon: youtube
-  url: ""
-- name: Instagram
-  icon: instagram
-  url: ""
-- name: X
-  icon: x
-  url: ""
-- name: Facebook
-  icon: facebook
-  url: ""
-- name: Spotify
-  icon: spotify
-  url: ""
-- name: Apple Music
-  icon: apple
-  url: ""
+- { name: Instagram, icon: instagram, url: "https://www.instagram.com/inoharajun/" }
+- { name: X, icon: x, url: "https://x.com/AffairJ914" }
+- { name: YouTube, icon: youtube, url: "https://www.youtube.com/user/cavebear0914" }
+- { name: Facebook, icon: facebook, url: "https://www.facebook.com/jun.inohara.1" }
+- { name: LINE, icon: line, url: "https://lin.ee/WUao6dU" }
+- { name: 音源配信, icon: music, url: "https://big-up.style/lbpg2OJoCR" }

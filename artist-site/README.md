@@ -1,4 +1,4 @@
-# アーティスト公式サイト（INOHARA JUN）
+# 猪原 純 オフィシャルサイト
 
 GitHub Pages で**無料**公開できる、軽量な静的サイトです。
 
@@ -11,16 +11,17 @@ GitHub Pages で**無料**公開できる、軽量な静的サイトです。
 | ページが重い | 外部ライブラリなし。YouTubeはクリックするまで読み込まない軽量埋め込み |
 
 ## ページ構成
-- `/` トップ（直近のライブ3件・最新ニュース5件・おすすめ動画）
+- `/` トップ（直近のライブ3件・最新ニュース・Showreel・最新作）
 - `/news/` ニュース（年ごとの過去ログ）
-- `/live/` ライブ（予定／過去の公演アーカイブ）
-- `/profile/` `/discography/` `/contact/`
+- `/live/` ライブ（予定／過去の公演を年別アーカイブ）
+- `/movie/` 動画（Solo／屑星／THE FROGS／Feel Art Cafe で絞り込み）
+- `/biography/` `/discography/` `/projects/` `/contact/`
 
 ## 更新のしかた
 
 ### 方法A：Pages CMS（おすすめ・フォーム入力）
 1. https://app.pagescms.org に GitHub アカウントでログイン
-2. このリポジトリを選ぶ → 左メニューに「ニュース」「ライブ」「プロフィール」「SNSリンク」「ディスコグラフィー」が出ます
+2. このリポジトリを選ぶ → 左メニューに「ニュース」「ライブ」「Biography」「動画」「プロジェクト」「SNSリンク」「ディスコグラフィー」が出ます
 3. 入力して保存 → 1〜2分でサイトに反映
 
 ### 方法B：GitHub で直接ファイルを追加
@@ -31,7 +32,14 @@ GitHub Pages で**無料**公開できる、軽量な静的サイトです。
 ### 全体設定
 - サイト名・肩書き・連絡先・トップの YouTube 動画：`_config.yml`
 - SNS の URL：`_data/sns.yml`（空欄のものは表示されません）
-- 画像：`assets/img/` に置く（プロフィール写真 `profile.svg`、SNSシェア画像 `ogp.png` を差し替え）
+- 動画：`_data/videos.yml` ／ プロジェクト：`_data/projects.yml`
+- 画像：`assets/img/`（トップ `hero.webp`、プロフィール `profile.webp`、SNSシェア画像 `ogp.jpg`）。旧サイトから引き継いだもの。差し替えは同じファイル名で上書きすればOK
+
+## お問い合わせフォーム（Web3Forms）
+Googleフォームと違い、**送信内容はどこにも保存されず、直接メールに届く**だけなので容量が一杯になることがありません（無料・月250件まで）。メールアドレスもページ上に表示されないため、迷惑メール対策にもなります。
+1. https://web3forms.com で受信したいメールアドレスを入力 →「Create Access Key」
+2. メールで届いたアクセスキーを `_config.yml` の `web3forms_key:` に貼り付け
+（未設定の間は「SNSのメッセージからご連絡ください」と表示されます）
 
 ## SNS への自動投稿（任意）
 `https://(サイトURL)/feed.xml` が RSS です。IFTTT や Zapier などの「RSS → X / Facebook 投稿」連携に登録すると、ニュースを書くだけで SNS にも告知できます。

@@ -1,0 +1,31 @@
+# 参加プロジェクト・バンド
+- name: "Feel Art Cafe"
+  sub: "〜名もなき音楽隊〜｜主宰"
+  image: /assets/img/feel-art-cafe.webp
+  body: |
+    2011年、小さなカフェから始まった福山発の音楽プロジェクト。カフェのようなアットホームな空間で、良い音楽をジャンルや世代を超えて楽しもうというコンセプトのもと、チェコでプロヴァイオリニストとして活躍中の後藤博亮と猪原純によって生み出された。
+
+    ロック、クラシック、アコースティックといった様々なフィールドで活躍するアーティストが一つのバンドとして結集し、多彩な楽曲を贅沢なストリングスを交えたオリジナルアレンジで演奏する。小編成の素朴な曲から室内弦楽、総勢20名近くのプレイヤーによる壮大なサウンドまで、広い振り幅と表現力をもつ。年に一度の公演は例年300席をソールドアウト。2026年に15周年を迎えた。
+  links:
+    - { name: "Website", url: "https://feelartcafe.wixsite.com/music" }
+    - { name: "X", url: "https://x.com/FeelArtCafe" }
+    - { name: "Facebook", url: "https://www.facebook.com/feel.art.cafe" }
+- name: "屑星"
+  sub: "空間系ギターロックバンド｜Gt/Vo"
+  body: |
+    広島県福山市で活動するバンド。島村楽器主催『HOTLINE2009』JAPAN FINALでエントリー総数2,500組以上の中からグランプリを受賞。MV『からっぽ』は各国の映画祭で受賞・入選。
+
+    Member：猪原純（Gt/Vo）、佐藤航平（Gt/Vo）、増川勝洋（Dr）、豊池竜彦（Ba）
+  links:
+    - { name: "X", url: "https://x.com/kuzuboshi_offi" }
+    - { name: "配信", url: "https://big-up.style/musics/444327" }
+- name: "THE FROGS"
+  sub: "Nu Acid Jam BAND｜Gt"
+  body: |
+    Gt. 猪原純、Ba. 池田悟示、Dr. 槇井龍二の3人から成るインストバンド。2008年に結成し瀬戸内を中心に活動。1stアルバムの表題「大衆音楽の対角線上に群生するポップソング」の通り、インストゥルメンタルミュージックの中にある「安定」と「不安定」を三者三様のプレイスタイルで畳み込む。高槻ジャズストリートに2年連続出演。
+  links:
+    - { name: "Website", url: "https://thefrogs.jimdofree.com/" }
+- name: "Blue Green Music Lab."
+  sub: "自主レーベル・事務所｜代表"
+  body: |
+    2023年5月に設立した自主レーベル兼事務所。楽曲制作・提供、演奏、音楽講師など、猪原純の音楽活動の拠点。

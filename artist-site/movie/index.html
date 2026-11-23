@@ -1,0 +1,17 @@
+---
+title: Movie
+---
+{% assign cats = site.data.videos | map: "category" | uniq %}
+<div class="filter" role="tablist">
+  <button class="on" data-filter="all">All</button>
+  {% for c in cats %}<button data-filter="{{ c }}">{{ c }}</button>{% endfor %}
+</div>
+<div class="video-grid">
+{% for v in site.data.videos %}
+  <figure data-cat="{{ v.category }}">
+    {% include youtube.html id=v.id title=v.title %}
+    <figcaption><span class="tag">{{ v.category }}</span> {{ v.title }}</figcaption>
+  </figure>
+{% endfor %}
+</div>
+<p><a href="https://www.youtube.com/user/cavebear0914" target="_blank" rel="noopener">YouTubeチャンネルでもっと見る →</a></p>

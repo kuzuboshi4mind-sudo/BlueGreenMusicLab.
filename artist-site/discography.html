@@ -2,16 +2,25 @@
 title: Discography
 permalink: /discography/
 ---
+{% assign groups = site.data.discography | group_by: "artist" %}
+<nav class="year-index">{% for g in groups %}<a href="#{{ g.name | slugify }}">{{ g.name }}</a>{% endfor %}</nav>
+{% for g in groups %}
+<h2 class="sub" id="{{ g.name | slugify }}">{{ g.name }}</h2>
 <div class="disco">
-{% for d in site.data.discography %}
+{% for d in g.items %}
   <article class="disco-item">
-    <div class="cover">{% if d.cover != "" %}<img src="{{ d.cover | relative_url }}" alt="{{ d.title }}" loading="lazy">{% else %}<span>♪</span>{% endif %}</div>
+    <div class="cover">{% if d.cover %}<img src="{{ d.cover | relative_url }}" alt="{{ d.title }}" loading="lazy">{% else %}<span>♪</span>{% endif %}</div>
     <div>
-      <p class="muted">{{ d.type }} · {{ d.release | date: "%Y.%m.%d" }}{% if d.label %} · {{ d.label }}{% endif %}</p>
-      <h2>{{ d.title }}</h2>
+      <p class="muted">{{ d.type }}{% if d.release %} · {{ d.release | replace: "-", "." }}{% endif %}{% if d.catalog %} · {{ d.catalog }}{% endif %}{% if d.price %} · {{ d.price }}{% endif %}</p>
+      <h3>{{ d.title }}</h3>
+      {% if d.note %}<p class="note">{{ d.note }}</p>{% endif %}
       {% if d.tracks %}<ol class="tracks">{% for t in d.tracks %}<li>{{ t }}</li>{% endfor %}</ol>{% endif %}
-      <p class="links">{% for k in d.links %}{% if k.url != "" %}<a class="btn small" href="{{ k.url }}" target="_blank" rel="noopener">{{ k.name }}</a>{% endif %}{% endfor %}</p>
+      <p class="links">
+        {% for k in d.links %}{% if k.url != "" %}<a class="btn small" href="{{ k.url | relative_url }}"{% unless k.url contains "/contact/" %} target="_blank" rel="noopener"{% endunless %}>{{ k.name }}</a>{% endif %}{% endfor %}
+        {% if d.youtube %}<a class="btn small ghost" href="https://youtu.be/{{ d.youtube }}" target="_blank" rel="noopener">動画を見る</a>{% endif %}
+      </p>
     </div>
   </article>
 {% endfor %}
 </div>
+{% endfor %}

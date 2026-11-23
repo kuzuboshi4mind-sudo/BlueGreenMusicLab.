@@ -1,0 +1,14 @@
+---
+title: Projects
+---
+{% for p in site.data.projects %}
+<article class="project" id="{{ p.name | slugify }}">
+  {% if p.image %}<img src="{{ p.image | relative_url }}" alt="{{ p.name }}" loading="lazy">{% endif %}
+  <div class="project-body">
+    <h2>{{ p.name }}</h2>
+    <p class="muted">{{ p.sub }}</p>
+    <div class="prose">{{ p.body | markdownify }}</div>
+    {% if p.links %}<p class="links">{% for k in p.links %}<a class="btn small ghost" href="{{ k.url }}" target="_blank" rel="noopener">{{ k.name }}</a>{% endfor %}</p>{% endif %}
+  </div>
+</article>
+{% endfor %}

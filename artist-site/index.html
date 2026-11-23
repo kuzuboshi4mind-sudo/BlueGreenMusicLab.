@@ -4,9 +4,10 @@ title: Home
 body_class: home
 ---
 {% assign now = site.time | date: "%Y-%m-%d" %}
-<section class="hero">
+<section class="hero" style="--hero-img:url('{{ '/assets/img/hero.webp' | relative_url }}')">
   <div class="wrap">
-    <h1>{{ site.title }}</h1>
+    <p class="hero-roles">{{ site.roles }}</p>
+    <h1>{{ site.title }}<span>{{ site.name_en }}</span></h1>
     <p class="tagline">{{ site.tagline }}</p>
   </div>
 </section>
@@ -17,7 +18,7 @@ body_class: home
   {% for l in lives %}{% assign d = l.date | date: "%Y-%m-%d" %}
     {% if d >= now and shown < 3 %}{% include live-item.html live=l %}{% assign shown = shown | plus: 1 %}{% endif %}
   {% endfor %}
-  {% if shown == 0 %}<p class="muted">現在予定されているライブはありません。</p>{% endif %}
+  {% if shown == 0 %}<p class="muted">次回のライブ情報は近日公開します。SNSでもお知らせします。<a href="{{ '/live/' | relative_url }}">過去のライブ</a></p>{% endif %}
 </section>
 
 <section class="wrap section">
@@ -28,7 +29,15 @@ body_class: home
 
 {% if site.featured_youtube_id != "" %}
 <section class="wrap section">
-  <div class="section-head"><h2>Video</h2></div>
-  {% include youtube.html id=site.featured_youtube_id %}
+  <div class="section-head"><h2>Movie</h2><a href="{{ '/movie/' | relative_url }}">すべて見る →</a></div>
+  {% include youtube.html id=site.featured_youtube_id title="Showreel" %}
 </section>
 {% endif %}
+
+<section class="wrap section">
+  <div class="section-head"><h2>Release</h2><a href="{{ '/discography/' | relative_url }}">すべて見る →</a></div>
+  <a class="release-card" href="{{ '/discography/' | relative_url }}">
+    <img src="{{ '/assets/img/cover-ensemble.webp' | relative_url }}" alt="ensemble" loading="lazy" width="160" height="160">
+    <div><p class="muted">1st Solo Album</p><h3>ensemble</h3><p>色彩溢れるサウンドが伸びやかな歌声に包まれ紡ぎ出される9つの物語。</p></div>
+  </a>
+</section>

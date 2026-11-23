@@ -1,22 +1,25 @@
 # ============================================================
 #  サイト全体の設定（ここを書き換えるだけで全ページに反映）
 # ============================================================
-title: "INOHARA JUN"            # サイト名（アーティスト名）
-tagline: "Musician / Composer"  # 肩書き・キャッチコピー
-description: "INOHARA JUN オフィシャルサイト。ライブ情報・ニュース・ディスコグラフィー。"
+title: "猪原 純"                 # サイト名（アーティスト名）
+name_en: "Inohara Jun"
+tagline: "純粋に良い音楽を。色褪せない歌を。"  # キャッチコピー
+roles: "Guitarist / Vocalist / Singer-songwriter / Composer"
+description: "広島県福山市を拠点に活動するギタリスト・シンガーソングライター猪原純のオフィシャルサイト。ライブ情報・作品・動画。"
 lang: ja
 url: "https://www.inohara-jun-web.com"   # 独自ドメイン（GitHub Pages で設定）
 baseurl: ""
 
-author: "INOHARA JUN"
-contact_email: "contact@example.com"     # ← 公開用の連絡先に変更
-contact_form_url: ""                      # Googleフォーム等のURL（空なら非表示）
+author: "Jun Inohara"
+# お問い合わせフォーム（Web3Forms）のアクセスキー。https://web3forms.com で取得して貼り付け
+web3forms_key: ""
+contact_email: ""      # フォームを使わない場合のみ、表示するメールアドレス
 
 # トップに表示する YouTube 動画のID（https://youtu.be/XXXX の XXXX 部分）
-featured_youtube_id: ""
+featured_youtube_id: "1JYO3SM-xeU"   # Showreel
 
 # OGP（SNSでシェアされたときの画像）
-image: /assets/img/ogp.png
+image: /assets/img/ogp.jpg
 
 timezone: Asia/Tokyo
 permalink: /news/:year/:month/:day/:title/

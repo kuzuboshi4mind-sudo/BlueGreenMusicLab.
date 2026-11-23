@@ -1,13 +1,45 @@
 # ディスコグラフィー（新しい順に上から追加）
-- title: "Sample Album"
-  type: "Album"
-  release: "2025-04-01"
-  label: "Self Release"
-  cover: ""            # 例: /assets/img/sample-album.jpg
-  tracks:
-    - "Track 1"
-    - "Track 2"
+# artist: Solo / 屑星 / THE FROGS などで絞り込み表示されます
+- title: "花のように"
+  artist: "Solo"
+  type: "Digital Single"
+  release: "2021-02"
+  note: "With COVID-19 Aid Charity Song（無料ダウンロード配信）"
+  youtube: "b7JyWCMwaLo"
+- title: "ensemble"
+  artist: "Solo"
+  type: "1st Solo Album"
+  release: "2018-09-16"
+  catalog: "EIFK-0916"
+  price: "¥2,000（税抜）"
+  cover: /assets/img/cover-ensemble.webp
+  note: "屑星、THE FROGSとして活動を続ける猪原純による待望の1stソロアルバム。色彩溢れるサウンドが伸びやかな歌声に包まれ紡ぎ出される9つの物語。感性をくすぐる創造性と表現力が絶妙にブレンドし、稀有な音楽世界を作り出している。あなたにとって何色に染まり響くのか、その世界をぜひ紐解いてほしい。"
+  youtube: "qZnilbPY-II"
+  tracks: ["overture", "フェロウメロウ", "10月のトワイライト", "舟と泡", "ハネモノ", "sunny", "輪郭", "からっぽ", "名前をつけて"]
   links:
-    - { name: "Spotify", url: "" }
-    - { name: "Apple Music", url: "" }
-    - { name: "Bandcamp", url: "" }
+    - { name: "配信で聴く", url: "https://big-up.style/lbpg2OJoCR" }
+    - { name: "CDのご購入（お問い合わせ）", url: "/contact/" }
+- title: "第二夜"
+  artist: "屑星"
+  type: "Mini Album"
+  release: "2019-09"
+  price: "¥1,500（税込）"
+  tracks: ["からっぽ", "影法師が手を振って", "第二夜", "幻想庭園", "四季と祝杯", "メリーゴーランド"]
+  links:
+    - { name: "配信で聴く", url: "https://big-up.style/musics/444327" }
+- title: "空と海との間に"
+  artist: "屑星"
+  type: "Single"
+  price: "¥800（税込）"
+  tracks: ["空中分解", "海底都市", "理想のうた"]
+- title: "感光"
+  artist: "屑星"
+  type: "Album"
+  price: "¥1,500（税込）"
+  tracks: ["夜風の交差", "未完成", "ハレルヤ", "あなたに逢えて", "嵐の夜に見る夢は", "予感とイメージ"]
+- title: "大衆音楽の対角線上に群生するポップソング"
+  artist: "THE FROGS"
+  type: "1st Album"
+  price: "¥1,800（税込）"
+  youtube: "xwd0UoDwFFc"
+  tracks: ["WALK", "Inclusion", "Ri・HONA", "coffee", "chair", "MILK", "stoic", "WALK -3Days mix"]

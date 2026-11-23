@@ -7,6 +7,7 @@
     <span class="wd">({{ wds[wd] }})</span>
   </div>
   <div class="live-body">
+    {% if l.project %}<span class="tag">{{ l.project }}</span>{% endif %}
     <h3>{{ l.title }}</h3>
     <dl>
       {% if l.venue %}<dt>会場</dt><dd>{% if l.venue_url and l.venue_url != "" %}<a href="{{ l.venue_url }}" target="_blank" rel="noopener">{{ l.venue }}</a>{% else %}{{ l.venue }}{% endif %}</dd>{% endif %}
