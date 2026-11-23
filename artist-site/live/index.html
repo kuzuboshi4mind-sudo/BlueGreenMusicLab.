@@ -1,0 +1,20 @@
+---
+title: Live
+---
+{% assign now = site.time | date: "%Y-%m-%d" %}
+{% assign lives = site.lives | sort: "date" %}
+<h2 class="sub">Upcoming</h2>
+{% assign n = 0 %}
+{% for l in lives %}{% assign d = l.date | date: "%Y-%m-%d" %}{% if d >= now %}{% include live-item.html live=l %}{% assign n = n | plus: 1 %}{% endif %}{% endfor %}
+{% if n == 0 %}<p class="muted">現在予定されているライブはありません。</p>{% endif %}
+
+<h2 class="sub">Archive</h2>
+{% assign past = "" | split: "" %}
+{% for l in lives reversed %}{% assign d = l.date | date: "%Y-%m-%d" %}{% if d < now %}{% assign past = past | push: l %}{% endif %}{% endfor %}
+{% assign pyears = past | group_by_exp: "l", "l.date | date: '%Y'" %}
+{% for y in pyears %}
+<details class="year-block"{% if forloop.first %} open{% endif %}>
+  <summary>{{ y.name }}<small>{{ y.items | size }}本</small></summary>
+  {% for l in y.items %}{% include live-item.html live=l past=true %}{% endfor %}
+</details>
+{% endfor %}

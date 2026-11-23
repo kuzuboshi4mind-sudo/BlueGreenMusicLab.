@@ -1,0 +1,83 @@
+# Pages CMS（https://pagescms.org）用の設定。
+# ブラウザ／スマホからフォーム入力でニュースやライブを更新できます。
+media:
+  input: assets/img
+  output: /assets/img
+
+content:
+  - name: posts
+    label: ニュース
+    type: collection
+    path: _posts
+    filename: "{year}-{month}-{day}-{fields.slug}.md"
+    view:
+      fields: [title, date, category]
+    fields:
+      - { name: title, label: タイトル, type: string, required: true }
+      - { name: slug, label: URL用の英字（例 new-album）, type: string, required: true }
+      - { name: date, label: 日付, type: date }
+      - name: category
+        label: カテゴリ
+        type: select
+        options: { values: [Info, Live, Release, Media] }
+      - { name: image, label: 画像, type: image }
+      - { name: youtube, label: YouTube動画ID, type: string }
+      - { name: body, label: 本文, type: rich-text }
+
+  - name: lives
+    label: ライブ
+    type: collection
+    path: _lives
+    filename: "{year}-{month}-{day}-{fields.slug}.md"
+    view:
+      fields: [title, date, venue]
+    fields:
+      - { name: title, label: 公演名, type: string, required: true }
+      - { name: slug, label: URL用の英字, type: string, required: true }
+      - { name: date, label: 日付, type: date, required: true }
+      - { name: venue, label: 会場, type: string }
+      - { name: venue_url, label: 会場URL, type: string }
+      - { name: time, label: 時間（OPEN/START）, type: string }
+      - { name: price, label: 料金, type: string }
+      - { name: members, label: 出演, type: string }
+      - { name: ticket_url, label: 予約URL, type: string }
+      - { name: body, label: 備考, type: rich-text }
+
+  - name: profile
+    label: プロフィール
+    type: file
+    path: profile.md
+    fields:
+      - { name: title, type: string, hidden: true, default: Profile }
+      - { name: permalink, type: string, hidden: true, default: /profile/ }
+      - { name: body, label: 本文, type: rich-text }
+
+  - name: sns
+    label: SNSリンク
+    type: file
+    path: _data/sns.yml
+    list: true
+    fields:
+      - { name: name, label: 名前, type: string }
+      - { name: icon, label: アイコン（youtube/instagram/x/facebook/spotify/apple）, type: string }
+      - { name: url, label: URL, type: string }
+
+  - name: discography
+    label: ディスコグラフィー
+    type: file
+    path: _data/discography.yml
+    list: true
+    fields:
+      - { name: title, label: タイトル, type: string }
+      - { name: type, label: 種別, type: string }
+      - { name: release, label: 発売日, type: date }
+      - { name: label, label: レーベル, type: string }
+      - { name: cover, label: ジャケット, type: image }
+      - { name: tracks, label: 曲目, type: string, list: true }
+      - name: links
+        label: 配信リンク
+        type: object
+        list: true
+        fields:
+          - { name: name, label: サービス名, type: string }
+          - { name: url, label: URL, type: string }

@@ -1,0 +1,21 @@
+---
+layout: default
+---
+<article class="wrap page post">
+  <p class="post-meta"><time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y.%m.%d" }}</time>{% if page.category %} <span class="tag">{{ page.category }}</span>{% endif %}</p>
+  <h1 class="page-title">{{ page.title }}</h1>
+  {% if page.image and page.image != "" %}<img class="post-image" src="{{ page.image | relative_url }}" alt="" loading="lazy">{% endif %}
+  {% if page.youtube and page.youtube != "" %}{% include youtube.html id=page.youtube title=page.title %}{% endif %}
+  <div class="prose">{{ content }}</div>
+  <div class="share">
+    <span>シェア</span>
+    <a href="https://x.com/intent/post?text={{ page.title | url_encode }}&url={{ page.url | absolute_url | url_encode }}" target="_blank" rel="noopener">X</a>
+    <a href="https://www.facebook.com/sharer/sharer.php?u={{ page.url | absolute_url | url_encode }}" target="_blank" rel="noopener">Facebook</a>
+    <a href="https://social-plugins.line.me/lineit/share?url={{ page.url | absolute_url | url_encode }}" target="_blank" rel="noopener">LINE</a>
+  </div>
+  <nav class="post-nav">
+    {% if page.previous %}<a href="{{ page.previous.url | relative_url }}">← {{ page.previous.title }}</a>{% else %}<span></span>{% endif %}
+    {% if page.next %}<a href="{{ page.next.url | relative_url }}">{{ page.next.title }} →</a>{% endif %}
+  </nav>
+  <p><a href="{{ '/news/' | relative_url }}">ニュース一覧へ</a></p>
+</article>

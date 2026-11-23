@@ -1,0 +1,17 @@
+---
+title: Discography
+permalink: /discography/
+---
+<div class="disco">
+{% for d in site.data.discography %}
+  <article class="disco-item">
+    <div class="cover">{% if d.cover != "" %}<img src="{{ d.cover | relative_url }}" alt="{{ d.title }}" loading="lazy">{% else %}<span>♪</span>{% endif %}</div>
+    <div>
+      <p class="muted">{{ d.type }} · {{ d.release | date: "%Y.%m.%d" }}{% if d.label %} · {{ d.label }}{% endif %}</p>
+      <h2>{{ d.title }}</h2>
+      {% if d.tracks %}<ol class="tracks">{% for t in d.tracks %}<li>{{ t }}</li>{% endfor %}</ol>{% endif %}
+      <p class="links">{% for k in d.links %}{% if k.url != "" %}<a class="btn small" href="{{ k.url }}" target="_blank" rel="noopener">{{ k.name }}</a>{% endif %}{% endfor %}</p>
+    </div>
+  </article>
+{% endfor %}
+</div>

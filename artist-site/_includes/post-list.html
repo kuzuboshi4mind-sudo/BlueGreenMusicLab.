@@ -1,0 +1,9 @@
+<ul class="post-list">
+{% for post in include.posts %}
+  <li><a href="{{ post.url | relative_url }}">
+    <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%Y.%m.%d" }}</time>
+    {% if post.category %}<span class="tag">{{ post.category }}</span>{% endif %}
+    <span class="t">{{ post.title }}</span>
+  </a></li>
+{% endfor %}
+</ul>

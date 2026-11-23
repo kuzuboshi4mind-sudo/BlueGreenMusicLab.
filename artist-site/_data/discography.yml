@@ -1,0 +1,13 @@
+# ディスコグラフィー（新しい順に上から追加）
+- title: "Sample Album"
+  type: "Album"
+  release: "2025-04-01"
+  label: "Self Release"
+  cover: ""            # 例: /assets/img/sample-album.jpg
+  tracks:
+    - "Track 1"
+    - "Track 2"
+  links:
+    - { name: "Spotify", url: "" }
+    - { name: "Apple Music", url: "" }
+    - { name: "Bandcamp", url: "" }

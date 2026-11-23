@@ -1,0 +1,14 @@
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+    <button class="nav-toggle" aria-label="メニュー" aria-expanded="false" aria-controls="site-nav">
+      <span></span><span></span><span></span>
+    </button>
+    <nav id="site-nav" class="site-nav">
+      {% assign nav = "news:News,live:Live,profile:Profile,discography:Discography,contact:Contact" | split: "," %}
+      {% for item in nav %}{% assign p = item | split: ":" %}
+      <a href="{{ '/' | append: p[0] | append: '/' | relative_url }}"{% if page.url contains p[0] %} aria-current="page"{% endif %}>{{ p[1] }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>

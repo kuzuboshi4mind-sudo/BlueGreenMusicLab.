@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="{{ site.lang }}">
+<head>
+{% include head.html %}
+</head>
+<body class="{{ page.body_class }}">
+{% include header.html %}
+<main id="main">
+{{ content }}
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    {% include sns-links.html %}
+    <p class="copy">&copy; {{ site.time | date: "%Y" }} {{ site.author }} · <a href="{{ '/feed.xml' | relative_url }}">RSS</a></p>
+  </div>
+</footer>
+<script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+</body>
+</html>

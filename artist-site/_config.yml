@@ -1,0 +1,46 @@
+# ============================================================
+#  サイト全体の設定（ここを書き換えるだけで全ページに反映）
+# ============================================================
+title: "INOHARA JUN"            # サイト名（アーティスト名）
+tagline: "Musician / Composer"  # 肩書き・キャッチコピー
+description: "INOHARA JUN オフィシャルサイト。ライブ情報・ニュース・ディスコグラフィー。"
+lang: ja
+url: "https://www.inohara-jun-web.com"   # 独自ドメイン（GitHub Pages で設定）
+baseurl: ""
+
+author: "INOHARA JUN"
+contact_email: "contact@example.com"     # ← 公開用の連絡先に変更
+contact_form_url: ""                      # Googleフォーム等のURL（空なら非表示）
+
+# トップに表示する YouTube 動画のID（https://youtu.be/XXXX の XXXX 部分）
+featured_youtube_id: ""
+
+# OGP（SNSでシェアされたときの画像）
+image: /assets/img/ogp.png
+
+timezone: Asia/Tokyo
+permalink: /news/:year/:month/:day/:title/
+
+collections:
+  lives:
+    output: false
+
+defaults:
+  - scope: { path: "", type: posts }
+    values: { layout: post }
+  - scope: { path: "" }
+    values: { layout: page }
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+feed:
+  path: feed.xml
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - .pages.yml

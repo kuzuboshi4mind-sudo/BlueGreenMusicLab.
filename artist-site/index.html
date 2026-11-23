@@ -1,0 +1,34 @@
+---
+layout: default
+title: Home
+body_class: home
+---
+{% assign now = site.time | date: "%Y-%m-%d" %}
+<section class="hero">
+  <div class="wrap">
+    <h1>{{ site.title }}</h1>
+    <p class="tagline">{{ site.tagline }}</p>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="section-head"><h2>Live</h2><a href="{{ '/live/' | relative_url }}">すべて見る →</a></div>
+  {% assign lives = site.lives | sort: "date" %}{% assign shown = 0 %}
+  {% for l in lives %}{% assign d = l.date | date: "%Y-%m-%d" %}
+    {% if d >= now and shown < 3 %}{% include live-item.html live=l %}{% assign shown = shown | plus: 1 %}{% endif %}
+  {% endfor %}
+  {% if shown == 0 %}<p class="muted">現在予定されているライブはありません。</p>{% endif %}
+</section>
+
+<section class="wrap section">
+  <div class="section-head"><h2>News</h2><a href="{{ '/news/' | relative_url }}">すべて見る →</a></div>
+  {% assign latest = site.posts | slice: 0, 5 %}
+  {% include post-list.html posts=latest %}
+</section>
+
+{% if site.featured_youtube_id != "" %}
+<section class="wrap section">
+  <div class="section-head"><h2>Video</h2></div>
+  {% include youtube.html id=site.featured_youtube_id %}
+</section>
+{% endif %}

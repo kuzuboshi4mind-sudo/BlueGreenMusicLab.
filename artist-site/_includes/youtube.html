@@ -1,0 +1,7 @@
+{%- comment -%} 軽量YouTube埋め込み：クリックするまで動画プレーヤーを読み込まない {%- endcomment -%}
+<div class="yt" data-id="{{ include.id }}">
+  <button class="yt-play" aria-label="動画を再生">
+    <img src="https://i.ytimg.com/vi/{{ include.id }}/hqdefault.jpg" alt="{{ include.title | default: 'YouTube動画' }}" loading="lazy" width="480" height="360">
+    <span class="yt-icon" aria-hidden="true"></span>
+  </button>
+</div>

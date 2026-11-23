@@ -1,0 +1,5 @@
+<ul class="sns">
+{% for s in site.data.sns %}{% if s.url != "" %}
+  <li><a href="{{ s.url }}" target="_blank" rel="noopener" aria-label="{{ s.name }}">{% include icon.html name=s.icon %}<span>{{ s.name }}</span></a></li>
+{% endif %}{% endfor %}
+</ul>

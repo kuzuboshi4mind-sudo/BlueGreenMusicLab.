@@ -1,0 +1,19 @@
+# SNSリンク（URLを空にすると非表示になります）
+- name: YouTube
+  icon: youtube
+  url: ""
+- name: Instagram
+  icon: instagram
+  url: ""
+- name: X
+  icon: x
+  url: ""
+- name: Facebook
+  icon: facebook
+  url: ""
+- name: Spotify
+  icon: spotify
+  url: ""
+- name: Apple Music
+  icon: apple
+  url: ""

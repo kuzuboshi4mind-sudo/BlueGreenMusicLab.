@@ -1,0 +1,20 @@
+{% assign l = include.live %}
+<article class="live-item{% if include.past %} is-past{% endif %}">
+  <div class="live-date">
+    <span class="y">{{ l.date | date: "%Y" }}</span>
+    <span class="md">{{ l.date | date: "%m.%d" }}</span>
+    {% assign wd = l.date | date: "%w" | plus: 0 %}{% assign wds = "日,月,火,水,木,金,土" | split: "," %}
+    <span class="wd">({{ wds[wd] }})</span>
+  </div>
+  <div class="live-body">
+    <h3>{{ l.title }}</h3>
+    <dl>
+      {% if l.venue %}<dt>会場</dt><dd>{% if l.venue_url and l.venue_url != "" %}<a href="{{ l.venue_url }}" target="_blank" rel="noopener">{{ l.venue }}</a>{% else %}{{ l.venue }}{% endif %}</dd>{% endif %}
+      {% if l.time %}<dt>時間</dt><dd>{{ l.time }}</dd>{% endif %}
+      {% if l.price %}<dt>料金</dt><dd>{{ l.price }}</dd>{% endif %}
+      {% if l.members %}<dt>出演</dt><dd>{{ l.members }}</dd>{% endif %}
+    </dl>
+    {% if l.content != "" %}<div class="live-note">{{ l.content | markdownify }}</div>{% endif %}
+    {% if l.ticket_url and l.ticket_url != "" and include.past != true %}<a class="btn" href="{{ l.ticket_url }}" target="_blank" rel="noopener">予約・チケット</a>{% endif %}
+  </div>
+</article>
