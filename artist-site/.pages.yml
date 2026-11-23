@@ -40,7 +40,8 @@ content:
       - { name: time, label: 時間（OPEN/START）, type: string }
       - { name: price, label: 料金, type: string }
       - { name: members, label: 出演, type: string }
-      - { name: ticket_url, label: 予約URL, type: string }
+      - { name: reserve, label: サイトで予約を受け付ける, type: boolean, default: true }
+      - { name: ticket_url, label: 外部のチケット購入URL（あれば）, type: string }
       - name: project
         label: 名義
         type: select

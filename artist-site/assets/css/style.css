@@ -168,3 +168,4 @@ img{max-width:100%;height:auto}
 .contact-form input,.contact-form select,.contact-form textarea{font:inherit;font-weight:400;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
 .contact-form button{justify-self:start;border:0;cursor:pointer;font:inherit;font-weight:700}
 .hp{display:none}
+.live-info{font-weight:400}

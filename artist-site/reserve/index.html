@@ -1,0 +1,40 @@
+---
+title: ライブ予約
+---
+{% assign now = site.time | date: "%Y-%m-%d" %}
+{% assign lives = site.lives | sort: "date" %}
+{% assign wds = "日,月,火,水,木,金,土" | split: "," %}
+{% assign open = 0 %}
+{% for l in lives %}{% assign d = l.date | date: "%Y-%m-%d" %}{% if d >= now and l.reserve != false %}{% assign open = open | plus: 1 %}{% endif %}{% endfor %}
+
+{% if site.web3forms_key == "" or open == 0 %}
+<p class="muted">現在、予約受付中のライブはありません。</p>
+<p><a href="{{ '/live/' | relative_url }}">ライブスケジュールを見る</a></p>
+{% else %}
+<p>内容を確認のうえ、折り返しご連絡いたします。お支払いは当日受付にてお願いします。</p>
+<form class="contact-form reserve-form" action="https://api.web3forms.com/submit" method="POST">
+  <input type="hidden" name="access_key" value="{{ site.web3forms_key }}">
+  <input type="hidden" name="subject" value="【予約】">
+  <input type="hidden" name="from_name" value="{{ site.title }} Website">
+  <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off">
+  <label>公演 *
+    <select name="公演" required>
+      {% for l in lives %}{% assign d = l.date | date: "%Y-%m-%d" %}{% if d >= now and l.reserve != false %}
+      {% assign key = l.path | split: "/" | last | remove: ".md" %}{% assign wd = l.date | date: "%w" | plus: 0 %}
+      <option value="{{ l.date | date: '%-m/%-d' }}({{ wds[wd] }}) {{ l.title }}{% if l.venue %} @{{ l.venue }}{% endif %}" data-key="{{ key }}"
+        data-info="{% if l.time %}{{ l.time }}{% endif %}{% if l.price %} ／ {{ l.price }}{% endif %}">{{ l.date | date: '%-m/%-d' }}({{ wds[wd] }}) {{ l.title }}</option>
+      {% endif %}{% endfor %}
+    </select>
+    <small class="live-info muted"></small>
+  </label>
+  <label>お名前 *<input name="name" required autocomplete="name"></label>
+  <label>人数 *
+    <select name="人数" required>{% for i in (1..10) %}<option>{{ i }}名</option>{% endfor %}</select>
+  </label>
+  <label>メールアドレス *<input type="email" name="email" required autocomplete="email"></label>
+  <label>電話番号<input type="tel" name="phone" autocomplete="tel"></label>
+  <label>備考<textarea name="message" rows="4" placeholder="お連れ様のお名前、学割・お子様連れなど"></textarea></label>
+  <button class="btn" type="submit">予約を送信する</button>
+  <p class="form-status" role="status"></p>
+</form>
+{% endif %}
